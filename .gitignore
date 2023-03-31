@@ -1,0 +1,17 @@
+*~
+*.swp
+*.swo
+*.log
+*.tar*
+*.zip
+*build
+__pycache__
+.coverage
+.DS_Store
+.envrc
+.gitconfig
+.idea/
+.pytest_cache
+.test-results
+.tox
+.venv

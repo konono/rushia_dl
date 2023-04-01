@@ -56,7 +56,7 @@ if __name__ == '__main__':
                         help="""
                         [REQUIRE] Please enter the video URL.
                         """)
-    parser.add_argument("-f","--format", dest="format", required=True,
+    parser.add_argument("-f","--format", dest="format", required=True, choices=["mp3", "mp4"],
                         help="""
                         [REQUIRE] Please input format that mp3 or mp4.
                         """)

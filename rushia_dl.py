@@ -33,7 +33,7 @@ def main(args):
 
     if args.path:
         if not Path(args.path).exists():
-            print('File does not found')
+            print(f'{args.path} does not found.')
             exit(1)
         with open(args.path) as f:
             for video_url in f:

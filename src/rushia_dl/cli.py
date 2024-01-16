@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 
 import argparse
-import fileinput
 
 from pathlib import Path
 from yt_dlp import YoutubeDL
@@ -11,7 +10,27 @@ def donwload_youtube(ydl_opts, video_url):
     with YoutubeDL(ydl_opts) as ydl:
         ydl.download([f'{video_url}'])
 
-def main(args):
+def parser():
+    parser = argparse.ArgumentParser(
+        description="This tool that download video and mp3 from youtube.")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("-p","--path", dest="path",
+                        help="""
+                        [REQUIRE] Please enter the URL of the video in the path of a text file.
+                        """)
+    group.add_argument("-u","--url", dest="url",
+                        help="""
+                        [REQUIRE] Please enter the video URL.
+                        """)
+    parser.add_argument("-f","--format", dest="format", required=True, choices=["mp3", "mp4"],
+                        help="""
+                        [REQUIRE] Please input format that mp3 or mp4.
+                        """)
+    args = parser.parse_args()
+    return args
+
+def main():
+    args = parser()
     if args.format == 'mp3':
         ydl_opts = {
             'format': 'bestaudio/best', # choice of quality
@@ -43,21 +62,3 @@ def main(args):
         video_url = args.url
         print(f'Downloading {video_url}')
         donwload_youtube(ydl_opts, video_url)
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description="This tool that download video and mp3 from youtube.")
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-p","--path", dest="path",
-                        help="""
-                        [REQUIRE] Please enter the URL of the video in the path of a text file.
-                        """)
-    group.add_argument("-u","--url", dest="url",
-                        help="""
-                        [REQUIRE] Please enter the video URL.
-                        """)
-    parser.add_argument("-f","--format", dest="format", required=True, choices=["mp3", "mp4"],
-                        help="""
-                        [REQUIRE] Please input format that mp3 or mp4.
-                        """)
-    main(parser.parse_args())

@@ -1,0 +1,12 @@
+LICENSE
+README.md
+setup.cfg
+setup.py
+src/rushia_dl/__init__.py
+src/rushia_dl/cli.py
+src/rushia_dl.egg-info/PKG-INFO
+src/rushia_dl.egg-info/SOURCES.txt
+src/rushia_dl.egg-info/dependency_links.txt
+src/rushia_dl.egg-info/entry_points.txt
+src/rushia_dl.egg-info/requires.txt
+src/rushia_dl.egg-info/top_level.txt

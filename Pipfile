@@ -8,6 +8,7 @@ youtube-dl = "*"
 google-api-python-client = "*"
 yt-dlp = "*"
 ffmpeg-python = "*"
+ffmpeg = "*"
 
 [dev-packages]
 pyinstaller = "*"

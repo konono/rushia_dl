@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: rushia-dl
-Version: 1.0.1
+Version: 1.0.2
 Summary: Youtube video & audio download wrapper
 Home-page: https://github.com/konono/rushia_dl
 Author: konono
@@ -44,8 +44,9 @@ Then install ffpmeg and configure the path in the environment variables.
 sudo apt install ffmpeg
 ```
 ## How to install
-
+```
 pip3 install rushia-dl
+```
 
 ## How to use
 

@@ -36,8 +36,8 @@ pip3 install rushia-dl
 オプションは-pと-u、-fの３つです。
 
 ```
-❯ pipenv run python3 rushia_dl.py -h
-usage: rushia_dl.py [-h] (-p PATH | -u URL) -f FORMAT
+❯ rushia-dl --help
+usage: rushia-dl [-h] (-p PATH | -u URL) -f {mp3,mp4}
 
 This tool that download video and mp3 from youtube.
 
@@ -45,8 +45,9 @@ options:
   -h, --help            show this help message and exit
   -p PATH, --path PATH  [REQUIRE] Please enter the URL of the video in the path of a text file.
   -u URL, --url URL     [REQUIRE] Please enter the video URL.
-  -f FORMAT, --format FORMAT
+  -f {mp3,mp4}, --format {mp3,mp4}
                         [REQUIRE] Please input format that mp3 or mp4.
+
 ```
 
 -fではフォーマットを指定します、mp3(音声のみ)もしくはmp4(動画)を選択します。
@@ -61,13 +62,13 @@ https://www.youtube.com/watch?v=bbbbbbb
 ```
 
 ```
-❯ pipenv run python3 rusia_dl.py -p ./test.txt -f mp4
+❯ rusia-dl.py -p ./test.txt -f mp4
 ```
 
 -uではURLを指定してください。
 
 ```
-❯ pipenv run python3 rusia_dl.py -u "https://www.youtube.com/watch?v=DHqLfnIoKWc" -f mp4
+❯ rusia-dl.py -u "https://www.youtube.com/watch?v=DHqLfnIoKWc" -f mp4
 ```
 
 この先も素敵な推し活を祈っています。

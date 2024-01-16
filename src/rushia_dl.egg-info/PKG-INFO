@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: rushia-dl
-Version: 1.0.0
+Version: 1.0.1
 Summary: Youtube video & audio download wrapper
 Home-page: https://github.com/konono/rushia_dl
 Author: konono
@@ -25,7 +25,7 @@ License-File: LICENSE
 
 作りとしては単純で[yt-dlp](https://github.com/yt-dlp/yt-dlp)をラップしているだけです、mp3とmp4をそれぞれのフォーマットで出力するときのオプションを覚えるのがめんどくさかったのでpythonでラッパーを書きました。
 
-## How to install
+## How to pre-install
 
 まずは依存しているffmpegをインストールしてPATHを通してください。
 
@@ -43,14 +43,9 @@ Then install ffpmeg and configure the path in the environment variables.
 ```
 sudo apt install ffmpeg
 ```
+## How to install
 
-次にpipenvを利用して依存パッケージをインストールします。
-
-```
-pipenv sync
-```
-
-ここまでできればインストールは完了です。
+pip3 install rushia-dl
 
 ## How to use
 

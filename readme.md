@@ -25,8 +25,9 @@ Then install ffpmeg and configure the path in the environment variables.
 sudo apt install ffmpeg
 ```
 ## How to install
-
+```
 pip3 install rushia-dl
+```
 
 ## How to use
 

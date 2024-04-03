@@ -1,6 +1,6 @@
 [project]
 name = "rushia-dl"
-version = "1.0.0"
+version = "0.1.2"
 description = "Youtube video & audio download wrapper"
 authors = [
     { name = "yyuki", email = "kono@ms1.kononet.jp" }
@@ -13,7 +13,7 @@ dependencies = [
     "ffmpeg>=1.4",
 ]
 readme = "README.md"
-requires-python = ">= 3.12"
+requires-python = ">= 3.10"
 license = {text = "MIT License"}
 
 [project.scripts]

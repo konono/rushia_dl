@@ -17,13 +17,21 @@ brew install ffmpeg
 ```
 
 ### For windows
-Download from https://ffmpeg.org/download.html#build-windows
-Then install ffpmeg and configure the path in the environment variables.
+
+Open a PowerShell or Windows command prompt in administrator mode, enter the command wsl --install, and reboot the machine.
+```
+wsl --install
+```
+
+**After installing Ubuntu with WSL, please follow the For linux procedure.**
+
 
 ### For Linux
 ```
+sudo apt update
 sudo apt install ffmpeg
 ```
+
 ## How to install
 ```
 pip3 install rushia-dl
@@ -31,13 +39,13 @@ pip3 install rushia-dl
 
 ## How to use
 
-使い方はかんたんです。
+使い方は簡単です。
 
-オプションは-pと-u、-fの３つです。
+オプションは-pと-u、-f,-mの4つです。
 
 ```
-❯ rushia-dl --help
-usage: rushia-dl [-h] (-p PATH | -u URL) -f {mp3,mp4}
+❯ rye run rushia-dl -h
+usage: rushia-dl [-h] (-p PATH | -u URL) -f {mp3,mp4} [-m]
 
 This tool that download video and mp3 from youtube.
 
@@ -47,6 +55,7 @@ options:
   -u URL, --url URL     [REQUIRE] Please enter the video URL.
   -f {mp3,mp4}, --format {mp3,mp4}
                         [REQUIRE] Please input format that mp3 or mp4.
+  -m, --membership      [OPTION] Please use -m option and put cookie.txt to current directory if you to do download file is membership only content.
 
 ```
 
@@ -70,5 +79,7 @@ https://www.youtube.com/watch?v=bbbbbbb
 ```
 ❯ rusia-dl.py -u "https://www.youtube.com/watch?v=DHqLfnIoKWc" -f mp4
 ```
+
+もしもmembership限定の動画であった場合は ```-m オプション```を利用してください。-mオプションを利用する際には**ブラウザからcookieをdumpしてcookie.txtという名前でcurrent directoryに配置してください。**
 
 この先も素敵な推し活を祈っています。

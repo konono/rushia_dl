@@ -26,29 +26,55 @@ def parser():
                         help="""
                         [REQUIRE] Please input format that mp3 or mp4.
                         """)
+    parser.add_argument("-m","--membership", dest="is_membership", required=False, action='store_true',
+                        help="""
+                        [OPTION] Please use -m option and put cookie.txt to current directory if you to do download file is membership only content.
+                        """)
     args = parser.parse_args()
     return args
 
 def main():
     args = parser()
-    if args.format == 'mp3':
-        ydl_opts = {
-            'format': 'bestaudio/best', # choice of quality
-            'extractaudio' : True,      # only keep the audio
-            'audioformat' : 'mp3',      # convert to mp3
-            'noplaylist' : True,        # only download single song, not playlist
-            'postprocessors': [{
-              'key': 'FFmpegExtractAudio',
-              'preferredcodec': 'mp3',
-              'preferredquality': '192',
-              }],
-             }
-    elif args.format == 'mp4':
-        ydl_opts = {
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best',
-            'download-archive': './download_cache.log',
-            'retries': 3,
-            }
+    if args.is_membership:
+        if args.format == 'mp3':
+            ydl_opts = {
+                'format': 'bestaudio/best', # choice of quality
+                'extractaudio' : True,      # only keep the audio
+                'audioformat' : 'mp3',      # convert to mp3
+                'noplaylist' : True,        # only download single song, not playlist
+                'cookiefile': './cookie.txt',
+                'postprocessors': [{
+                  'key': 'FFmpegExtractAudio',
+                  'preferredcodec': 'mp3',
+                  'preferredquality': '192',
+                  }],
+                 }
+        elif args.format == 'mp4':
+            ydl_opts = {
+                'cookiefile': './cookie.txt',
+                'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best',
+                'download-archive': './download_cache.log',
+                'retries': 3,
+                }
+    else:
+        if args.format == 'mp3':
+            ydl_opts = {
+                'format': 'bestaudio/best', # choice of quality
+                'extractaudio' : True,      # only keep the audio
+                'audioformat' : 'mp3',      # convert to mp3
+                'noplaylist' : True,        # only download single song, not playlist
+                'postprocessors': [{
+                  'key': 'FFmpegExtractAudio',
+                  'preferredcodec': 'mp3',
+                  'preferredquality': '192',
+                  }],
+                 }
+        elif args.format == 'mp4':
+            ydl_opts = {
+                'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best',
+                'download-archive': './download_cache.log',
+                'retries': 3,
+                }
 
     if args.path:
         if not Path(args.path).exists():

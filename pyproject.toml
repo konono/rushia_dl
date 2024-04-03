@@ -1,0 +1,45 @@
+[project]
+name = "rushia-dl"
+version = "1.0.0"
+description = "Youtube video & audio download wrapper"
+authors = [
+    { name = "yyuki", email = "kono@ms1.kononet.jp" }
+]
+dependencies = [
+    "youtube-dl>=2021.12.17",
+    "google-api-python-client>=2.125.0",
+    "yt-dlp>=2024.3.10",
+    "ffmpeg-python>=0.2.0",
+    "ffmpeg>=1.4",
+]
+readme = "README.md"
+requires-python = ">= 3.12"
+license = {text = "MIT License"}
+
+[project.scripts]
+rushia-dl = "rushia_dl.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "setuptools>=69.2.0",
+    "wheel>=0.43.0",
+    "pynvim>=0.5.0",
+    "jedi>=0.19.1",
+    "hatch>=1.9.4",
+]
+
+
+[[tool.rye.sources]]
+name = "konono"
+url = "http://pypi.org/simple/"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rushia_dl"]

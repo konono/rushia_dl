@@ -1,2 +1,0 @@
-[console_scripts]
-rushia-dl = rushia_dl.cli:main

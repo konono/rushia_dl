@@ -1,20 +1,18 @@
 [project]
 name = "rushia-dl"
-version = "0.1.2"
-description = "Youtube video & audio download wrapper"
+version = "0.1.3"
+description = "YouTube video & audio download wrapper (yt-dlp based)"
 authors = [
     { name = "yyuki", email = "kono@ms1.kononet.jp" }
 ]
-dependencies = [
-    "youtube-dl>=2021.12.17",
-    "google-api-python-client>=2.125.0",
-    "yt-dlp>=2024.3.10",
-    "ffmpeg-python>=0.2.0",
-    "ffmpeg>=1.4",
-]
+requires-python = ">=3.10"
 readme = "README.md"
-requires-python = ">= 3.10"
-license = {text = "MIT License"}
+license = { text = "MIT License" }
+
+dependencies = [
+    "yt-dlp>=2025.8.11",
+    "google-api-python-client>=2.179.0",
+]
 
 [project.scripts]
 rushia-dl = "rushia_dl.cli:main"
@@ -26,17 +24,16 @@ build-backend = "hatchling.build"
 [tool.rye]
 managed = true
 dev-dependencies = [
-    "setuptools>=69.2.0",
-    "wheel>=0.43.0",
-    "pynvim>=0.5.0",
-    "jedi>=0.19.1",
-    "hatch>=1.9.4",
+    "setuptools>=80.9.0",
+    "wheel>=0.45.1",
+    "pynvim>=0.5.2",
+    "jedi>=0.19.2",
+    "hatch>=1.14.1",
 ]
 
-
 [[tool.rye.sources]]
-name = "konono"
-url = "http://pypi.org/simple/"
+name = "pypi"
+url = "https://pypi.org/simple/"
 
 [tool.hatch.metadata]
 allow-direct-references = true

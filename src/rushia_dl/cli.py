@@ -88,3 +88,6 @@ def main():
         video_url = args.url
         print(f'Downloading {video_url}')
         donwload_youtube(ydl_opts, video_url)
+
+if __name__ == "__main__":
+    main()

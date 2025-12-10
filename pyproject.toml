@@ -10,8 +10,8 @@ readme = "README.md"
 license = { text = "MIT License" }
 
 dependencies = [
-    "yt-dlp>=2025.8.11",
-    "google-api-python-client>=2.179.0",
+    "yt-dlp",
+    "google-api-python-client",
 ]
 
 [project.scripts]

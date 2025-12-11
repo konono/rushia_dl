@@ -7,6 +7,8 @@
 *build
 *.mp3
 *.mp4
+*.webm
+*.m4a
 __pycache__
 .coverage
 .DS_Store
@@ -19,3 +21,32 @@ __pycache__
 .venv
 src/rushia_dl.egg-info
 dist/
+
+# ==========================================
+# 🚨 機密情報（絶対にコミットしない）
+# ==========================================
+# Cookie/認証情報
+cookie.txt
+cookies.txt
+*.cookies
+.cookies/
+cookies/
+
+# パスワードファイル
+nginx/.htpasswd
+.htpasswd
+
+# SSL証明書
+certbot/
+*.pem
+*.key
+*.crt
+
+# ダウンロードファイル
+downloads/
+download/
+
+# 環境変数
+.env
+.env.*
+!.env.example

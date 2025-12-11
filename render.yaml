@@ -1,0 +1,23 @@
+# Render Blueprint - render.yaml
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: rushia-dl
+    runtime: docker
+    # プランを選択（free, starter, standard, pro）
+    plan: starter  # $7/月、スリープなし
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    # ヘルスチェック
+    healthCheckPath: /api/server-status
+    # 永続ディスク（オプション - 追加料金）
+    # disk:
+    #   name: downloads
+    #   mountPath: /app/downloads
+    #   sizeGB: 10  # $2.5/月
+
+
+

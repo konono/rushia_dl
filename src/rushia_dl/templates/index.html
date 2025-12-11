@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rushia DL - YouTube Downloader</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
+    
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h1>RUSHIA<span class="accent">DL</span></h1>
+            </div>
+            <p class="tagline">YouTube動画・音声ダウンローダー</p>
+        </header>
+
+        <main class="main">
+            <!-- タブナビゲーション -->
+            <div class="tab-nav">
+                <button class="tab-btn active" id="tabDownload">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>ダウンロード</span>
+                </button>
+                <button class="tab-btn" id="tabHistory">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 8v4l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    <span>履歴</span>
+                    <span class="tab-badge" id="historyBadge" style="display: none;">0</span>
+                </button>
+            </div>
+
+            <!-- ダウンロードカード -->
+            <div class="download-card" id="downloadCard">
+                <div class="card-header">
+                    <span class="card-title">ダウンロード</span>
+                    <div class="status-indicator" id="statusIndicator">
+                        <span class="status-dot"></span>
+                        <span class="status-text">待機中</span>
+                    </div>
+                </div>
+                
+                <form id="downloadForm" class="download-form">
+                    <div class="input-group">
+                        <label for="urlInput">YouTube URL</label>
+                        <div class="input-wrapper">
+                            <input 
+                                type="url" 
+                                id="urlInput" 
+                                placeholder="https://www.youtube.com/watch?v=..." 
+                                required
+                            >
+                            <div class="input-icon">
+                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="format-group">
+                        <label>フォーマット</label>
+                        <div class="format-options">
+                            <label class="format-option">
+                                <input type="radio" name="format" value="mp3" checked>
+                                <div class="format-card">
+                                    <div class="format-icon">
+                                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M9 18V5l12-2v13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2"/>
+                                            <circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="2"/>
+                                        </svg>
+                                    </div>
+                                    <span class="format-name">MP3</span>
+                                    <span class="format-desc">音声のみ</span>
+                                </div>
+                            </label>
+                            <label class="format-option">
+                                <input type="radio" name="format" value="mp4">
+                                <div class="format-card">
+                                    <div class="format-icon">
+                                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+                                            <path d="M8 21h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                            <path d="M12 17v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                            <polygon points="10,8 10,12 14,10" fill="currentColor"/>
+                                        </svg>
+                                    </div>
+                                    <span class="format-name">MP4</span>
+                                    <span class="format-desc">動画</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="cookie-section">
+                        <div class="cookie-header">
+                            <label class="section-label">メンバーシップ限定コンテンツ</label>
+                            <span class="cookie-status" id="cookieStatus"></span>
+                        </div>
+                        <div class="cookie-upload">
+                            <input type="file" id="cookieFile" accept=".txt" style="display: none;">
+                            <button type="button" class="cookie-upload-btn" id="cookieUploadBtn">
+                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <span>Cookie.txtをアップロード</span>
+                            </button>
+                            <button type="button" class="cookie-clear-btn" id="cookieClearBtn" style="display: none;">
+                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <p class="cookie-hint">※ メン限動画をダウンロードする場合は、<a href="#" id="showCookieGuide" class="cookie-guide-link">Cookie.txtの取得方法を確認</a></p>
+                    </div>
+
+                    <button type="submit" class="download-btn" id="downloadBtn">
+                        <span class="btn-text">ダウンロード開始</span>
+                        <span class="btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </span>
+                    </button>
+                </form>
+
+                <!-- Cookie取得ガイド -->
+                <div class="guide-section" id="guideSection" style="display: none;">
+                    <div class="guide-header">
+                        <button class="guide-back-btn" id="guideBackBtn">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M19 12H5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>戻る</span>
+                        </button>
+                        <h2 class="guide-title">Cookie.txt の取得方法</h2>
+                    </div>
+
+                    <div class="guide-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>拡張機能をインストール</h3>
+                            <p>Chrome ウェブストアから「Get cookies.txt LOCALLY」をインストールします。</p>
+                            <a href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc" target="_blank" rel="noopener noreferrer" class="guide-link">
+                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <polyline points="15 3 21 3 21 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <line x1="10" y1="14" x2="21" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Chrome ウェブストアを開く
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="guide-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>シークレットモードで有効化</h3>
+                            <p>拡張機能の設定で「シークレットモードでの実行を許可する」を有効にします。</p>
+                            <div class="step-detail">
+                                <ol>
+                                    <li>Chrome の拡張機能アイコンをクリック</li>
+                                    <li>「Get cookies.txt LOCALLY」の「︙」をクリック</li>
+                                    <li>「拡張機能を管理」を選択</li>
+                                    <li>「シークレット モードでの実行を許可する」をON</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="guide-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>シークレットモードでYouTubeにログイン</h3>
+                            <p>シークレットモード（Ctrl+Shift+N / Cmd+Shift+N）で新しいウィンドウを開き、YouTubeにログインします。</p>
+                            <div class="step-warning">
+                                ⚠️ メンバーシップに加入しているアカウントでログインしてください
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="guide-step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Cookie.txtをエクスポート</h3>
+                            <p>YouTubeのページで拡張機能アイコンをクリックし、「Export」ボタンでCookie.txtをダウンロードします。</p>
+                            <div class="step-detail">
+                                <ol>
+                                    <li>YouTube のページを開いた状態で</li>
+                                    <li>拡張機能アイコン → 「Get cookies.txt LOCALLY」</li>
+                                    <li>「Export」または「Download」をクリック</li>
+                                    <li>ダウンロードした Cookie.txt をこのページでアップロード</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="guide-note">
+                        <strong>💡 なぜシークレットモード？</strong>
+                        <p>通常モードではCookieが自動的にローテーション（更新）されるため、エクスポートしたCookieがすぐに無効になることがあります。シークレットモードを使用することで、この問題を回避できます。</p>
+                    </div>
+                </div>
+
+                <!-- プログレス表示 -->
+                <div class="progress-section" id="progressSection" style="display: none;">
+                    <div class="progress-header">
+                        <span class="progress-title" id="progressTitle">ダウンロード中...</span>
+                        <span class="progress-percent" id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                        <div class="progress-glow"></div>
+                    </div>
+                    <div class="progress-details">
+                        <div class="progress-detail-row">
+                            <span class="progress-label">ステータス:</span>
+                            <span class="progress-value" id="progressStatusText">準備中...</span>
+                        </div>
+                        <div class="progress-detail-row">
+                            <span class="progress-label">速度:</span>
+                            <span class="progress-value" id="progressSpeed">--</span>
+                        </div>
+                        <div class="progress-detail-row">
+                            <span class="progress-label">残り時間:</span>
+                            <span class="progress-value" id="progressEta">--</span>
+                        </div>
+                        <div class="progress-detail-row">
+                            <span class="progress-label">サイズ:</span>
+                            <span class="progress-value" id="progressSize">-- / --</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 完了表示 -->
+                <div class="complete-section" id="completeSection" style="display: none;">
+                    <div class="complete-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <path d="M8 12l2.5 2.5L16 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="complete-title">ダウンロード完了！</h3>
+                    <p class="complete-filename" id="completeFilename"></p>
+                    <a href="#" class="save-btn" id="saveBtn">
+                        <span>ファイルを保存</span>
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </a>
+                    <button class="new-download-btn" id="newDownloadBtn">新しいダウンロード</button>
+                </div>
+
+                <!-- エラー表示 -->
+                <div class="error-section" id="errorSection" style="display: none;">
+                    <div class="error-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="error-title">エラーが発生しました</h3>
+                    <p class="error-message" id="errorMessage"></p>
+                    <div class="error-buttons">
+                        <button class="back-btn" id="backBtn">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M19 12H5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>戻る</span>
+                        </button>
+                        <button class="retry-btn" id="retryBtn">
+                            <span>再試行</span>
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M23 4v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 履歴カード -->
+            <div class="history-card" id="historyCard" style="display: none;">
+                <div class="card-header">
+                    <span class="card-title">ダウンロード履歴</span>
+                    <span class="history-note">※ 履歴は6時間保持されます</span>
+                </div>
+                
+                <div class="history-list" id="historyList">
+                    <!-- 履歴アイテムがここに追加される -->
+                </div>
+                
+                <div class="history-empty" id="historyEmpty" style="display: none;">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 8v4l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    <p>履歴はありません</p>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="footer">
+            <p>Powered by <strong>yt-dlp</strong> | Rushia DL v0.1.3</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

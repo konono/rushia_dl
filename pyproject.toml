@@ -12,10 +12,14 @@ license = { text = "MIT License" }
 dependencies = [
     "yt-dlp",
     "google-api-python-client",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.20",
 ]
 
 [project.scripts]
 rushia-dl = "rushia_dl.cli:main"
+rushia-web = "rushia_dl.api:run_server"
 
 [build-system]
 requires = ["hatchling"]

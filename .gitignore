@@ -9,6 +9,8 @@
 *.mp4
 *.webm
 *.m4a
+*.opus
+*.ogg
 __pycache__
 .coverage
 .DS_Store

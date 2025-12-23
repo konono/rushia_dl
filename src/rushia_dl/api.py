@@ -45,7 +45,8 @@ app = FastAPI(
     title="Rushia DL",
     description="YouTube動画・音声ダウンローダー",
     version="0.1.3",
-    lifespan=lifespan
+    lifespan=lifespan,
+    redirect_slashes=False  # トレーリングスラッシュのリダイレクトを無効化
 )
 
 # CORS設定
@@ -111,7 +112,7 @@ async def cleanup_old_files():
             
             # 古いファイルを削除（3時間経過）
             for file_path in DOWNLOAD_DIR.iterdir():
-                if file_path.is_file() and file_path.suffix in ['.mp3', '.mp4']:
+                if file_path.is_file() and file_path.suffix in ['.m4a', '.mp4']:
                     file_age = current_time - file_path.stat().st_mtime
                     if file_age > file_retention_seconds:
                         try:
@@ -319,15 +320,16 @@ async def download_video(task_id: str, url: str, format: str, cookie_id: Optiona
         # 共通オプションを取得
         ydl_opts = get_common_ydl_opts(task_id)
         
-        if format == 'mp3':
+        if format == 'm4a':
+            # M4A: YouTubeのネイティブ形式を直接ダウンロード（変換なし）
             ydl_opts.update({
-                'format': 'bestaudio/best',
-                'extractaudio': True,
-                'audioformat': 'mp3',
+                'format': 'bestaudio[ext=m4a]/bestaudio/best',
+                # M4A以外の形式がダウンロードされた場合のみ変換
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
+                    'preferredcodec': 'm4a',
+                    'preferredquality': '0',  # 元の品質を維持
+                    'nopostoverwrites': True,
                 }],
             })
         else:  # mp4
@@ -358,7 +360,7 @@ async def download_video(task_id: str, url: str, format: str, cookie_id: Optiona
         if info:
             title = info.get('title', 'Unknown')
             video_id = info.get('id', '')
-            ext = 'mp3' if format == 'mp3' else 'mp4'
+            ext = 'm4a' if format == 'm4a' else 'mp4'
             
             # 実際のファイルを検索（yt-dlpがサニタイズした名前で）
             actual_filename = None
@@ -552,8 +554,8 @@ async def start_download(request: DownloadRequest, background_tasks: BackgroundT
         raise HTTPException(status_code=400, detail="有効なYouTube URLを入力してください")
     
     # フォーマットの検証
-    if request.format not in ['mp3', 'mp4']:
-        raise HTTPException(status_code=400, detail="フォーマットはmp3またはmp4を指定してください")
+    if request.format not in ['m4a', 'mp4']:
+        raise HTTPException(status_code=400, detail="フォーマットはm4aまたはmp4を指定してください")
     
     # 同時ダウンロード数のチェック
     with downloads_lock:
@@ -656,7 +658,7 @@ async def download_file(filename: str):
         raise HTTPException(status_code=404, detail="ファイルが見つかりません")
     
     # ファイルタイプに応じたMIMEタイプを設定
-    media_type = "audio/mpeg" if filename.endswith('.mp3') else "video/mp4"
+    media_type = "audio/mp4" if filename.endswith('.m4a') else "video/mp4"
     
     return FileResponse(
         path=str(file_path),
@@ -671,7 +673,7 @@ async def server_status():
     # ダウンロードディレクトリのファイル数をカウント
     file_count = sum(
         1 for f in DOWNLOAD_DIR.iterdir()
-        if f.is_file() and f.suffix in ['.mp3', '.mp4']
+        if f.is_file() and f.suffix in ['.m4a', '.mp4']
     )
     
     # アクティブなタスク（実行中のバックグラウンドタスク）を取得

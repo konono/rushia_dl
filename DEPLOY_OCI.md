@@ -143,22 +143,49 @@ cd rushia_dl
 
 ## 9. Let's Encrypt 証明書の初期設定
 
-### 初期化スクリプトを実行
+### 方法A: オールインワン（推奨）
 ```bash
 cd ~/rushia_dl
 
 # 実行権限を付与
-chmod +x scripts/*.sh
+chmod +x scripts/*.sh scripts/lib/*.sh
 
-# 証明書を取得（ドメインとメールアドレスを指定）
-./scripts/init-letsencrypt.sh your-domain.com your-email@example.com
+# 初期セットアップを実行（ドメインとメールアドレスを指定）
+./scripts/init-all.sh your-domain.com your-email@example.com
+
+# テスト用（Let's Encryptのステージング環境を使用）
+./scripts/init-all.sh your-domain.com your-email@example.com --staging
 ```
 
-スクリプトが自動で以下を実行:
-1. nginx設定ファイルのドメイン名を更新
-2. ダミー証明書を作成してnginxを起動
-3. Let's Encrypt から本番証明書を取得
-4. 全サービスを起動
+### 方法B: ステップバイステップ
+各ステップを個別に実行することも可能です：
+```bash
+# 1. ディレクトリ作成
+./scripts/setup-dirs.sh
+
+# 2. nginx設定ファイル生成
+./scripts/generate-nginx-config.sh your-domain.com
+
+# 3. Basic認証ユーザー追加
+./scripts/manage-user.sh add admin
+
+# 4. ダミー証明書作成（nginx初回起動用）
+./scripts/create-dummy-cert.sh your-domain.com
+
+# 5. ビルド & nginx起動
+podman-compose build
+podman-compose up -d nginx
+
+# 6. nginx起動待ち
+./scripts/wait-for-nginx.sh
+
+# 7. 本番証明書取得
+./scripts/obtain-cert.sh your-domain.com your-email@example.com
+
+# 8. nginxリロード & 全サービス起動
+podman-compose exec nginx nginx -s reload
+podman-compose up -d
+```
 
 ---
 
@@ -181,15 +208,24 @@ echo "https://your-domain.com"
 
 ### 方法1: Certbotコンテナ（デフォルト）
 docker-compose.yml の certbot サービスが12時間ごとに自動更新をチェックします。
+更新後はnginxのリロードも自動で行われます。
 
 ### 方法2: cronジョブ（追加オプション）
 ```bash
+# cronジョブを設定（毎日午前3時に実行）
 ./scripts/setup-cron.sh
+
+# cronジョブを削除
+./scripts/setup-cron.sh --remove
 ```
 
 ### 手動更新
 ```bash
+# 通常の更新（有効期限が近い場合のみ更新）
 ./scripts/renew-cert.sh
+
+# 強制更新（テスト用、本番では非推奨）
+./scripts/renew-cert.sh --force
 ```
 
 ### 証明書の状態確認
@@ -364,17 +400,33 @@ sudo setenforce 0
 
 ---
 
+## スクリプト一覧
+
+| スクリプト | 用途 |
+|-----------|------|
+| `init-all.sh` | 初期セットアップ（オールインワン） |
+| `setup-dirs.sh` | ディレクトリ作成 |
+| `generate-nginx-config.sh` | nginx設定ファイル生成 |
+| `create-dummy-cert.sh` | ダミー証明書作成 |
+| `wait-for-nginx.sh` | nginx起動待ち |
+| `obtain-cert.sh` | Let's Encrypt証明書取得 |
+| `renew-cert.sh` | 証明書更新 |
+| `setup-cron.sh` | cron自動更新設定 |
+| `manage-user.sh` | Basic認証ユーザー管理（add/delete/list） |
+
 ## クイックリファレンス
 
 | 操作 | コマンド |
 |------|---------|
-| 初期セットアップ | `./scripts/init-letsencrypt.sh DOMAIN EMAIL` |
+| 初期セットアップ | `./scripts/init-all.sh DOMAIN EMAIL` |
 | 起動 | `podman-compose up -d` |
 | 停止 | `podman-compose down` |
 | 再起動 | `podman-compose restart` |
 | ログ | `podman-compose logs -f` |
 | 証明書更新 | `./scripts/renew-cert.sh` |
 | 証明書確認 | `podman-compose run --rm certbot certificates` |
+| ユーザー追加 | `./scripts/manage-user.sh add USERNAME` |
+| ユーザー一覧 | `./scripts/manage-user.sh list` |
 
 ---
 

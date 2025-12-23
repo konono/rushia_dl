@@ -50,5 +50,3 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # アプリケーションを起動
 CMD ["uvicorn", "rushia_dl.api:app", "--host", "0.0.0.0", "--port", "8000"]
-
-

@@ -4,19 +4,24 @@ FastAPI backend for rushia_dl web interface
 from __future__ import unicode_literals
 
 import asyncio
+import secrets
 import time
 import uuid
+
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 from threading import Lock
 from typing import Optional
 
+from pydantic import BaseModel
+
+from fastapi import Query
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from urllib.parse import quote
 from yt_dlp import YoutubeDL
 
 # アプリケーションのライフサイクル管理
@@ -83,6 +88,8 @@ downloads_lock = Lock()
 # ファイル保持設定
 FILE_RETENTION_HOURS = 3  # ファイル保持時間（時間）
 CLEANUP_INTERVAL_SECONDS = 300  # クリーンアップ間隔（5分）
+DOWNLOAD_TOKEN_TTL_SECONDS = 10 * 60  # 10分（好みで調整）
+
 
 # タスクステータスごとのタイムアウト設定（秒）
 TASK_TIMEOUT = {
@@ -151,7 +158,7 @@ async def cleanup_old_files():
 
 class DownloadRequest(BaseModel):
     url: str
-    format: str  # "mp3" or "mp4"
+    format: str  # "m4a" or "mp4"
     cookie_id: Optional[str] = None  # アップロードされたCookieのID
 
 
@@ -173,6 +180,7 @@ class DownloadStatus(BaseModel):
     downloaded_bytes: Optional[int] = None
     total_bytes: Optional[int] = None
     elapsed: Optional[float] = None  # 経過秒数
+    download_url: Optional[str] = None
 
 
 def progress_hook(task_id: str):
@@ -416,6 +424,12 @@ async def download_video(task_id: str, url: str, format: str, cookie_id: Optiona
                             break
             
             if actual_filename:
+                token = secrets.token_urlsafe(32)
+                expires_at = time.time() + DOWNLOAD_TOKEN_TTL_SECONDS
+                download_tasks[task_id]['download_token'] = token
+                download_tasks[task_id]['download_token_expires_at'] = expires_at
+
+
                 download_tasks[task_id]['status'] = 'completed'
                 download_tasks[task_id]['progress'] = 100
                 download_tasks[task_id]['filename'] = actual_filename
@@ -674,6 +688,8 @@ async def start_download(request: DownloadRequest, background_tasks: BackgroundT
         'speed': None,
         'eta': None,
         'downloaded_bytes': None,
+        'download_token': None,
+        'download_token_expires_at': None,
         'total_bytes': None,
         'elapsed': None,
         'created_at': time.time(),  # タスク作成時刻（クリーンアップ用）
@@ -691,11 +707,17 @@ async def start_download(request: DownloadRequest, background_tasks: BackgroundT
 
 @app.get("/api/status/{task_id}", response_model=DownloadStatus)
 async def get_status(task_id: str):
-    """ダウンロード状態を取得"""
     if task_id not in download_tasks:
         raise HTTPException(status_code=404, detail="タスクが見つかりません")
-    
+
     task = download_tasks[task_id]
+
+    download_url = None
+    if task.get('status') == 'completed' and task.get('filename') and task.get('download_token'):
+        # filename はURLに載るのでエンコード
+        safe_filename = quote(task['filename'])
+        download_url = f"/api/download/{safe_filename}?token={task['download_token']}"
+
     return DownloadStatus(
         task_id=task_id,
         status=task['status'],
@@ -708,20 +730,38 @@ async def get_status(task_id: str):
         downloaded_bytes=task.get('downloaded_bytes'),
         total_bytes=task.get('total_bytes'),
         elapsed=task.get('elapsed'),
+        download_url=download_url,
     )
 
+@app.get("/api/download/")
+async def download_root():
+    raise HTTPException(status_code=400, detail="filename が必要です")
 
 @app.get("/api/download/{filename}")
-async def download_file(filename: str):
-    """ダウンロードしたファイルを取得（60分後に自動削除）"""
+async def download_file(filename: str, token: str = Query(..., min_length=10)):
+    """トークン付きでダウンロード（Basic認証を外す前提）"""
+    # token -> task を探す（メモリ内なので線形だが件数少ない想定）
+    matched_task = None
+    now = time.time()
+
+    for task_id, task in download_tasks.items():
+        if task.get('filename') == filename and task.get('download_token') == token:
+            matched_task = task
+            break
+
+    if not matched_task:
+        raise HTTPException(status_code=401, detail="無効なトークンです")
+
+    expires_at = matched_task.get('download_token_expires_at') or 0
+    if now > expires_at:
+        raise HTTPException(status_code=401, detail="トークンの有効期限が切れました。もう一度ダウンロードを実行してください。")
+
     file_path = DOWNLOAD_DIR / filename
-    
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="ファイルが見つかりません")
-    
-    # ファイルタイプに応じたMIMEタイプを設定
+
     media_type = "audio/mp4" if filename.endswith('.m4a') else "video/mp4"
-    
+
     return FileResponse(
         path=str(file_path),
         filename=filename,

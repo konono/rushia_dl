@@ -129,7 +129,8 @@ class RushiaDL {
             timestamp: Date.now(),
             status: 'pending',
             title: null,
-            filename: null
+            filename: null,
+            downloadUrl: null
         });
         
         this.saveHistory(filtered);
@@ -229,6 +230,7 @@ class RushiaDL {
                                 status: data.status,
                                 title: data.title || item.title,
                                 filename: data.filename || item.filename,
+                                downloadUrl: data.download_url || item.downloadUrl,
                                 progress: data.progress
                             });
                             updated = true;
@@ -268,8 +270,13 @@ class RushiaDL {
         // ダウンロードボタンのイベントリスナーを設定
         this.historyList.querySelectorAll('.history-download-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
+                const downloadUrl = e.currentTarget.dataset.downloadUrl;
                 const filename = e.currentTarget.dataset.filename;
-                if (filename) {
+
+                if (downloadUrl) {
+                    window.location.href = downloadUrl;
+                } else if (filename) {
+                    // 互換: 古い履歴用
                     window.location.href = `/api/download/${encodeURIComponent(filename)}`;
                 }
             });
@@ -285,7 +292,7 @@ class RushiaDL {
         let actionHtml = '';
         if (item.status === 'completed' && item.filename) {
             actionHtml = `
-                <button class="history-download-btn" data-filename="${item.filename}">
+                <button class="history-download-btn" data-filename="${item.filename}" data-download-url="${item.downloadUrl || ''}">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         <polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -416,7 +423,7 @@ class RushiaDL {
             if (data.status === 'completed') {
                 // 完了済み - 完了画面を表示
                 this.currentTaskId = savedTask.taskId;
-                this.showComplete(data.filename, data.title);
+                this.showComplete(data.filename, data.title, data.download_url);
             } else if (data.status === 'error') {
                 // エラー - エラー画面を表示
                 this.showError(data.error || 'ダウンロードに失敗しました');
@@ -601,6 +608,7 @@ class RushiaDL {
                 status: data.status,
                 title: data.title,
                 filename: data.filename,
+                downloadUrl: data.download_url,
                 progress: data.progress
             });
             this.updateHistoryBadge();
@@ -608,7 +616,7 @@ class RushiaDL {
             if (data.status === 'completed') {
                 this.stopPolling();
                 // 完了時は保存ボタンクリック後にクリアするため、ここではクリアしない
-                this.showComplete(data.filename, data.title);
+                this.showComplete(data.filename, data.title, data.download_url);
             } else if (data.status === 'error') {
                 this.stopPolling();
                 this.clearSavedTask(); // エラー時はクリア
@@ -733,14 +741,17 @@ class RushiaDL {
         this.progressSize.textContent = '-- / --';
     }
     
-    showComplete(filename, title) {
+    showComplete(filename, title, downloadUrl) {
         this.form.style.display = 'none';
         this.progressSection.style.display = 'none';
         this.completeSection.style.display = 'block';
         this.errorSection.style.display = 'none';
         
         this.completeFilename.textContent = title || filename;
-        this.saveBtn.href = `/api/download/${encodeURIComponent(filename)}`;
+        const href = (downloadUrl && downloadUrl.length > 0)
+          ? downloadUrl
+          : `/api/download/${encodeURIComponent(filename)}`;
+        this.saveBtn.href = href;
         this.saveBtn.download = filename;
         
         // ファイル保存ボタンクリック時にタスクをクリア

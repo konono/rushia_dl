@@ -103,6 +103,9 @@ TASK_TIMEOUT = {
 # ダウンロードタスクの状態管理
 download_tasks: dict = {}
 
+# filename → token のマッピング（線形探索を避けるため）
+filename_to_token: dict[str, dict] = {}
+
 # クリーンアップタスクの制御
 cleanup_task: Optional[asyncio.Task] = None
 
@@ -141,6 +144,12 @@ async def cleanup_old_files():
                     tasks_to_delete.append(task_id)
             
             for task_id in tasks_to_delete:
+                task_data = download_tasks.get(task_id)
+                # filename_to_token からも削除
+                if task_data and task_data.get('filename'):
+                    filename = task_data['filename']
+                    if filename in filename_to_token:
+                        del filename_to_token[filename]
                 del download_tasks[task_id]
                 deleted_tasks += 1
             
@@ -181,6 +190,7 @@ class DownloadStatus(BaseModel):
     total_bytes: Optional[int] = None
     elapsed: Optional[float] = None  # 経過秒数
     download_url: Optional[str] = None
+    token_expires_at: Optional[float] = None  # トークンの有効期限（Unix timestamp）
 
 
 def progress_hook(task_id: str):
@@ -429,6 +439,12 @@ async def download_video(task_id: str, url: str, format: str, cookie_id: Optiona
                 download_tasks[task_id]['download_token'] = token
                 download_tasks[task_id]['download_token_expires_at'] = expires_at
 
+                # filename → token のマッピングを追加
+                filename_to_token[actual_filename] = {
+                    'token': token,
+                    'expires_at': expires_at,
+                    'task_id': task_id
+                }
 
                 download_tasks[task_id]['status'] = 'completed'
                 download_tasks[task_id]['progress'] = 100
@@ -713,10 +729,12 @@ async def get_status(task_id: str):
     task = download_tasks[task_id]
 
     download_url = None
+    token_expires_at = None
     if task.get('status') == 'completed' and task.get('filename') and task.get('download_token'):
         # filename はURLに載るのでエンコード
         safe_filename = quote(task['filename'])
         download_url = f"/api/download/{safe_filename}?token={task['download_token']}"
+        token_expires_at = task.get('download_token_expires_at')
 
     return DownloadStatus(
         task_id=task_id,
@@ -731,6 +749,7 @@ async def get_status(task_id: str):
         total_bytes=task.get('total_bytes'),
         elapsed=task.get('elapsed'),
         download_url=download_url,
+        token_expires_at=token_expires_at,
     )
 
 @app.get("/api/download/")
@@ -740,19 +759,18 @@ async def download_root():
 @app.get("/api/download/{filename}")
 async def download_file(filename: str, token: str = Query(..., min_length=10)):
     """トークン付きでダウンロード（Basic認証を外す前提）"""
-    # token -> task を探す（メモリ内なので線形だが件数少ない想定）
-    matched_task = None
     now = time.time()
-
-    for task_id, task in download_tasks.items():
-        if task.get('filename') == filename and task.get('download_token') == token:
-            matched_task = task
-            break
-
-    if not matched_task:
+    
+    # filename → token の辞書から直接検索（線形探索をやめる）
+    token_info = filename_to_token.get(filename)
+    
+    if not token_info:
         raise HTTPException(status_code=401, detail="無効なトークンです")
-
-    expires_at = matched_task.get('download_token_expires_at') or 0
+    
+    if token_info['token'] != token:
+        raise HTTPException(status_code=401, detail="無効なトークンです")
+    
+    expires_at = token_info.get('expires_at', 0)
     if now > expires_at:
         raise HTTPException(status_code=401, detail="トークンの有効期限が切れました。もう一度ダウンロードを実行してください。")
 

@@ -1231,6 +1231,25 @@ body {
     color: var(--text-muted);
 }
 
+.history-expired-message {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--accent-red);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.history-expired {
+    padding: 0.5rem 1rem;
+    background: rgba(255, 59, 92, 0.1);
+    border: 1px solid rgba(255, 59, 92, 0.3);
+    border-radius: var(--radius-sm);
+    color: var(--accent-red);
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
 .history-action {
     flex-shrink: 0;
     display: flex;

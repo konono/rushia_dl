@@ -219,19 +219,26 @@ class RushiaDL {
         let updated = false;
         
         for (const item of history) {
-            // 完了・エラー以外のタスクのみ更新
-            if (item.status !== 'completed' && item.status !== 'error') {
+            // 完了・エラー以外のタスクのみ更新（完了済みも期限切れチェックのため更新）
+            if (item.status !== 'error') {
                 try {
                     const response = await fetch(`/api/status/${item.taskId}`);
                     if (response.ok) {
                         const data = await response.json();
-                        if (data.status !== item.status || data.title !== item.title || data.filename !== item.filename) {
+                        // ステータス、タイトル、ファイル名、期限切れ情報が変更された場合に更新
+                        const tokenExpiresAt = data.token_expires_at;
+                        const currentExpiresAt = item.tokenExpiresAt;
+                        const expiresAtChanged = tokenExpiresAt !== currentExpiresAt;
+                        
+                        if (data.status !== item.status || data.title !== item.title || 
+                            data.filename !== item.filename || expiresAtChanged) {
                             this.updateHistoryTask(item.taskId, {
                                 status: data.status,
                                 title: data.title || item.title,
                                 filename: data.filename || item.filename,
                                 downloadUrl: data.download_url || item.downloadUrl,
-                                progress: data.progress
+                                progress: data.progress,
+                                tokenExpiresAt: tokenExpiresAt
                             });
                             updated = true;
                         }
@@ -289,21 +296,33 @@ class RushiaDL {
         const timeAgo = this.formatTimeAgo(item.timestamp);
         const title = item.title || this.extractVideoId(item.url) || '取得中...';
         
+        // 期限切れチェック
+        const isExpired = item.status === 'completed' && item.tokenExpiresAt && 
+                         Date.now() / 1000 > item.tokenExpiresAt;
+        
         let actionHtml = '';
         if (item.status === 'completed' && item.filename) {
-            actionHtml = `
-                <button class="history-download-btn" data-filename="${item.filename}" data-download-url="${item.downloadUrl || ''}">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </button>
-            `;
+            if (isExpired) {
+                actionHtml = `
+                    <span class="history-expired">期限切れ</span>
+                `;
+            } else {
+                actionHtml = `
+                    <button class="history-download-btn" data-filename="${item.filename}" data-download-url="${item.downloadUrl || ''}">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                `;
+            }
         } else if (item.status === 'downloading' || item.status === 'processing') {
             const progress = item.progress || 0;
             actionHtml = `<span class="history-progress">${Math.round(progress)}%</span>`;
         }
+        
+        const expiredMessage = isExpired ? '<div class="history-expired-message">期限切れ、再DLしてください</div>' : '';
         
         return `
             <div class="history-item ${item.status}">
@@ -314,6 +333,7 @@ class RushiaDL {
                         <span class="history-status ${item.status}">${statusInfo.icon} ${statusInfo.text}</span>
                         <span class="history-time">${timeAgo}</span>
                     </div>
+                    ${expiredMessage}
                 </div>
                 <div class="history-action">
                     ${actionHtml}
@@ -423,7 +443,7 @@ class RushiaDL {
             if (data.status === 'completed') {
                 // 完了済み - 完了画面を表示
                 this.currentTaskId = savedTask.taskId;
-                this.showComplete(data.filename, data.title, data.download_url);
+                this.showComplete(data.filename, data.title, data.download_url, data.token_expires_at);
             } else if (data.status === 'error') {
                 // エラー - エラー画面を表示
                 this.showError(data.error || 'ダウンロードに失敗しました');
@@ -609,14 +629,15 @@ class RushiaDL {
                 title: data.title,
                 filename: data.filename,
                 downloadUrl: data.download_url,
-                progress: data.progress
+                progress: data.progress,
+                tokenExpiresAt: data.token_expires_at
             });
             this.updateHistoryBadge();
             
             if (data.status === 'completed') {
                 this.stopPolling();
                 // 完了時は保存ボタンクリック後にクリアするため、ここではクリアしない
-                this.showComplete(data.filename, data.title, data.download_url);
+                this.showComplete(data.filename, data.title, data.download_url, data.token_expires_at);
             } else if (data.status === 'error') {
                 this.stopPolling();
                 this.clearSavedTask(); // エラー時はクリア
@@ -741,13 +762,23 @@ class RushiaDL {
         this.progressSize.textContent = '-- / --';
     }
     
-    showComplete(filename, title, downloadUrl) {
+    showComplete(filename, title, downloadUrl, tokenExpiresAt) {
         this.form.style.display = 'none';
         this.progressSection.style.display = 'none';
         this.completeSection.style.display = 'block';
         this.errorSection.style.display = 'none';
         
         this.completeFilename.textContent = title || filename;
+        
+        // 期限切れチェック
+        const isExpired = tokenExpiresAt && Date.now() / 1000 > tokenExpiresAt;
+        
+        if (isExpired) {
+            // 期限切れの場合はエラー表示
+            this.showError('ダウンロードリンクの有効期限が切れました。もう一度ダウンロードを実行してください。');
+            return;
+        }
+        
         const href = (downloadUrl && downloadUrl.length > 0)
           ? downloadUrl
           : `/api/download/${encodeURIComponent(filename)}`;

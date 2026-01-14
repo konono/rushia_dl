@@ -32,9 +32,9 @@ async def lifespan(app: FastAPI):
     # 起動時: クリーンアップタスクを開始
     cleanup_task = asyncio.create_task(cleanup_old_files())
     print(f"[Startup] File cleanup task started (retention: {FILE_RETENTION_HOURS} hours)")
-    
+
     yield
-    
+
     # 終了時: クリーンアップタスクを停止
     if cleanup_task:
         cleanup_task.cancel()
@@ -88,7 +88,7 @@ downloads_lock = Lock()
 # ファイル保持設定
 FILE_RETENTION_HOURS = 3  # ファイル保持時間（時間）
 CLEANUP_INTERVAL_SECONDS = 300  # クリーンアップ間隔（5分）
-DOWNLOAD_TOKEN_TTL_SECONDS = 10 * 60  # 10分（好みで調整）
+DOWNLOAD_TOKEN_TTL_SECONDS = 180 * 60   # 180分（好みで調整）
 
 
 # タスクステータスごとのタイムアウト設定（秒）
@@ -116,7 +116,7 @@ async def cleanup_old_files():
             file_retention_seconds = FILE_RETENTION_HOURS * 60 * 60
             deleted_files = 0
             deleted_tasks = 0
-            
+
             # 古いファイルを削除（3時間経過）
             for file_path in DOWNLOAD_DIR.iterdir():
                 if file_path.is_file() and file_path.suffix in ['.m4a', '.mp4']:

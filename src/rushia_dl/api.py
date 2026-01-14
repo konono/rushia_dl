@@ -281,21 +281,50 @@ def get_common_ydl_opts(task_id: str) -> dict:
         'progress_hooks': [progress_hook(task_id)],
         'postprocessor_hooks': [postprocessor_hook(task_id)],
         'noplaylist': True,
+
         # リトライ設定（レート制限エラー時の自動リトライ）
         'retries': 10,  # リトライ回数
         'fragment_retries': 10,  # フラグメントのリトライ回数
         'extractor_retries': 5,  # 抽出のリトライ回数
+
         # エラーハンドリング
         'ignoreerrors': False,  # エラーを無視しない
         'no_warnings': False,  # 警告を表示
+
         # YouTubeのJSチャレンジ解決に必要（Deno + remote components）
         'remote_components': ['ejs:github'],
+
+        # ★追加：IPv6経路で403/不安定になる環境の対策
+        'force_ipv4': False,
+
+        # ★追加：YouTube extractor の安定化（SABR強制・URL欠落回避に効くことが多い）
+        # android が通りやすい / web は保険
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'web'],
+            }
+        },
+
+        # ついでにUAを付けておくとブロック回避率が上がることがある
+        'http_headers': {
+            'User-Agent': (
+                'Mozilla/5.0 (X11; Linux x86_64) '
+                'AppleWebKit/537.36 (KHTML, like Gecko) '
+                'Chrome/120.0.0.0 Safari/537.36'
+            ),
+            'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
+        },
+
         # 注意: sleep_intervalはダウンロード速度を大幅に低下させるため
         # ダウンロード時には使用しない（情報取得時のみ使用）
     }
 
 
 async def download_video(task_id: str, url: str, format: str, cookie_id: Optional[str] = None):
+    print(f"[Debug] raw url={url}")
+    url = clean_youtube_url(url)
+    print(f"[Debug] normalized url={url}")
+
     """バックグラウンドでダウンロードを実行"""
     global active_downloads
     
@@ -473,33 +502,66 @@ async def delete_cookie(cookie_id: str):
     
     raise HTTPException(status_code=404, detail="Cookieファイルが見つかりません")
 
+def extract_youtube_video_id(url: str) -> str:
+    """
+    Supported:
+      - https://www.youtube.com/watch?v=VIDEO_ID&...
+      - https://youtu.be/VIDEO_ID?si=...
+      - https://www.youtube.com/shorts/VIDEO_ID?...
+      - https://www.youtube.com/live/VIDEO_ID?...
+      - https://www.youtube.com/embed/VIDEO_ID?...
+      - youtu.be/VIDEO_ID (schemeなしも一応)
+    """
+    from urllib.parse import urlparse, parse_qs
+
+    url = (url or "").strip()
+    if not url:
+        raise ValueError("Empty URL")
+
+    # scheme無し入力対策（youtu.be/... や youtube.com/...）
+    if "://" not in url:
+        url = "https://" + url
+
+    p = urlparse(url)
+    host = (p.netloc or "").lower()
+    path = p.path or ""
+
+    # youtu.be/<id>
+    if host in {"youtu.be", "www.youtu.be"}:
+        vid = path.lstrip("/").split("/")[0]
+        if not vid:
+            raise ValueError("Invalid youtu.be URL (missing video id).")
+        return vid
+
+    # youtube.com 系
+    if host.endswith("youtube.com") or host.endswith("youtube-nocookie.com"):
+
+        # /watch?v=<id>
+        if path == "/watch":
+            q = parse_qs(p.query)
+            vid = (q.get("v") or [None])[0]
+            if not vid:
+                raise ValueError("Invalid watch URL (missing v=...).")
+            return vid
+
+        # /shorts/<id>, /live/<id>, /embed/<id>
+        for prefix in ("/shorts/", "/live/", "/embed/"):
+            if path.startswith(prefix):
+                vid = path[len(prefix):].split("/")[0]
+                if vid:
+                    return vid
+
+    raise ValueError(f"Unsupported YouTube URL: {url}")
+
 
 def clean_youtube_url(url: str) -> str:
-    """YouTubeのURLからプレイリスト関連のパラメータを削除"""
-    from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
-    
-    parsed = urlparse(url)
-    query_params = parse_qs(parsed.query)
-    
-    # 動画IDのみを保持（プレイリスト関連パラメータを削除）
-    cleaned_params = {}
-    if 'v' in query_params:
-        cleaned_params['v'] = query_params['v'][0]
-    
-    # 新しいクエリ文字列を作成
-    new_query = urlencode(cleaned_params)
-    
-    # URLを再構築
-    cleaned_url = urlunparse((
-        parsed.scheme,
-        parsed.netloc,
-        parsed.path,
-        parsed.params,
-        new_query,
-        ''  # fragment
-    ))
-    
-    return cleaned_url
+    """
+    どんなYouTube URLでも video_id を抽出して watch URL に正規化する。
+    これにより share URL (youtu.be/... ?si=...) も対応できる。
+    """
+    video_id = extract_youtube_video_id(url)
+    print(f"debug: {video_id}")
+    return f"https://www.youtube.com/watch?v={video_id}"
 
 
 def check_if_live(url: str, cookie_id: Optional[str] = None) -> dict:

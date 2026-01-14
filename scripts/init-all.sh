@@ -7,10 +7,10 @@
 #   2. ./scripts/generate-nginx-config.sh <ドメイン>
 #   3. ./scripts/manage-user.sh add <ユーザー名>
 #   4. ./scripts/create-dummy-cert.sh <ドメイン>
-#   5. podman-compose build && podman-compose up -d nginx
+#   5. compose build && compose up -d nginx
 #   6. ./scripts/wait-for-nginx.sh
 #   7. ./scripts/obtain-cert.sh <ドメイン> <メール>
-#   8. podman-compose up -d
+#   8. compose up -d
 
 # shellcheck source=lib/common.sh
 source "$(dirname "$0")/lib/common.sh"
@@ -56,13 +56,26 @@ echo ""
 # Step 2: nginx設定ファイル生成
 "$SCRIPTS_DIR/generate-nginx-config.sh" "$DOMAIN"
 
-# Step 3: Basic認証ユーザー作成（存在しない場合のみ）
-if [[ ! -f "$HTPASSWD_FILE" ]]; then
-    echo ""
-    log_step "🔒 Basic認証の初期ユーザーを作成"
+# Step 3: Basic認証ユーザー作成（必要なら再設定できる）
+echo ""
+log_step "🔒 Basic認証ユーザーを作成/更新しますか？"
+
+if [[ -s "$HTPASSWD_FILE" ]]; then
+    log_info ".htpasswd は既に存在します: $HTPASSWD_FILE"
+    if confirm "既存ユーザーの追加/パスワード再設定を行いますか？" "n"; then
+        echo "ユーザー名を入力してください（例: admin）:"
+        read -r ADMIN_USER
+        if [[ -n "$ADMIN_USER" ]]; then
+            "$SCRIPTS_DIR/manage-user.sh" add "$ADMIN_USER"
+        else
+            log_warn "ユーザー作成/更新をスキップしました"
+        fi
+    else
+        log_info "ユーザー作成/更新をスキップしました"
+    fi
+else
     echo "管理者ユーザー名を入力してください（例: admin）:"
     read -r ADMIN_USER
-    
     if [[ -n "$ADMIN_USER" ]]; then
         "$SCRIPTS_DIR/manage-user.sh" add "$ADMIN_USER"
     else
@@ -70,17 +83,16 @@ if [[ ! -f "$HTPASSWD_FILE" ]]; then
         log_info "後から ./scripts/manage-user.sh add <ユーザー名> で追加できます"
     fi
 fi
-
 # Step 4: ダミー証明書作成
 "$SCRIPTS_DIR/create-dummy-cert.sh" "$DOMAIN"
 
 # Step 5: アプリケーションをビルド
 log_step "アプリケーションをビルド..."
-podman-compose build
+compose build
 
 # Step 6: nginxを起動
 log_step "nginxを起動..."
-podman-compose up -d nginx
+compose up -d nginx
 
 # Step 7: nginx起動待ち
 "$SCRIPTS_DIR/wait-for-nginx.sh"
@@ -94,11 +106,11 @@ fi
 
 # Step 9: nginxをリロード
 log_step "nginxをリロード..."
-podman-compose exec nginx nginx -s reload
+compose exec nginx nginx -s reload
 
 # Step 10: 全サービスを起動
 log_step "全サービスを起動..."
-podman-compose up -d
+compose up -d
 
 echo ""
 echo "============================================"

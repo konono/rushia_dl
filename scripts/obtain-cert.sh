@@ -55,7 +55,7 @@ log_info "ドメイン: $DOMAIN"
 log_info "メール: $EMAIL"
 
 # certbotコマンドを構築
-CERTBOT_CMD="certonly --webroot --webroot-path=/var/www/certbot --email ${EMAIL} --agree-tos --no-eff-email -d ${DOMAIN}"
+CERTBOT_CMD="certonly --dns-cloudflare --dns-cloudflare-credentials /run/secrets/cloudflare.ini --email ${EMAIL} --agree-tos --no-eff-email -d ${DOMAIN}"
 
 # ステージング環境（テスト用）
 if [[ "$STAGING" == "--staging" ]]; then
@@ -69,7 +69,7 @@ log_info "実行コマンド: certbot $CERTBOT_CMD"
 # 証明書を取得
 # --entrypoint でデフォルトのentrypointを上書きして直接certbotを実行
 # shellcheck disable=SC2086
-uvx podman-compose run --rm --entrypoint "certbot" certbot $CERTBOT_CMD
+compose run --rm --entrypoint "certbot" certbot $CERTBOT_CMD
 
 # 結果を確認
 if [[ -f "${CERT_PATH}/fullchain.pem" ]]; then

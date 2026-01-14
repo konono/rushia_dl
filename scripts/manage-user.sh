@@ -53,13 +53,28 @@ cmd_add() {
     
     log_step "ユーザー '$username' を追加..."
     
-    # htpasswdコマンドがある場合はそれを使用
+            # htpasswdコマンドがある場合はそれを使用（失敗したら再入力できるようにする）
     if command -v htpasswd &> /dev/null; then
+        local htpasswd_args=()
         if [[ -f "$HTPASSWD_FILE" ]]; then
-            htpasswd "$HTPASSWD_FILE" "$username"
+            htpasswd_args=("$HTPASSWD_FILE" "$username")
         else
-            htpasswd -c "$HTPASSWD_FILE" "$username"
+            htpasswd_args=("-c" "$HTPASSWD_FILE" "$username")
         fi
+
+        while true; do
+            # set -e だと htpasswd の失敗で即死するので一時的に緩める
+            set +e
+            htpasswd "${htpasswd_args[@]}"
+            local rc=$?
+            set -e
+
+            if [[ $rc -eq 0 ]]; then
+                break
+            fi
+
+            log_warn "パスワード設定に失敗しました（例: 確認用パスワード不一致）。もう一度やり直してください。"
+        done
     else
         # htpasswdがない場合はopensslで代用
         require_command openssl

@@ -114,3 +114,40 @@ get_env() {
     echo "${!var_name:-$default}"
 }
 
+# ===========================================
+# Compose コマンド統一（podman-compose / docker compose / docker-compose）
+# ===========================================
+detect_compose_cmd() {
+    if [[ -n "${COMPOSE_CMD:-}" ]]; then
+        echo "$COMPOSE_CMD"
+        return 0
+    fi
+
+    if command -v podman-compose &> /dev/null; then
+        echo "podman-compose"
+        return 0
+    fi
+
+    # docker compose (v2)
+    if command -v docker &> /dev/null && docker compose version &> /dev/null; then
+        echo "docker compose"
+        return 0
+    fi
+
+    # docker-compose (v1)
+    if command -v docker-compose &> /dev/null; then
+        echo "docker-compose"
+        return 0
+    fi
+
+    log_error "compose コマンドが見つかりません（podman-compose / docker compose / docker-compose）"
+    exit 1
+}
+
+compose() {
+    local cmd
+    cmd="$(detect_compose_cmd)"
+    # shellcheck disable=SC2086
+    $cmd "$@"
+}
+

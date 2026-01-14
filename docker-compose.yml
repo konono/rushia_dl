@@ -1,13 +1,13 @@
-version: '3.8'
-
+---
 services:
-  # Nginx リバースプロキシ（SSL終端）
   nginx:
     image: nginx:alpine
     container_name: rushia-nginx
+    networks:
+      - rushia_ipv6
     ports:
-      - "80:80"
-      - "443:443"
+      - "[::]:80:80"
+      - "[::]:443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro,z
       - ./nginx/conf.d:/etc/nginx/conf.d:ro,z
@@ -23,28 +23,30 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Certbot（証明書管理）
   certbot:
-    image: certbot/certbot
+    image: certbot/dns-cloudflare:latest
     container_name: rushia-certbot
+    networks:
+      - rushia_ipv6
     volumes:
       - ./certbot/conf:/etc/letsencrypt:z
-      - ./certbot/www:/var/www/certbot:z
+      - ./certbot/secrets:/run/secrets:ro,z
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
     restart: unless-stopped
 
-  # Rushia DL アプリケーション
   rushia-dl:
     build:
       context: .
       dockerfile: Dockerfile
     image: rushia-dl:latest
     container_name: rushia-dl
-    # 外部には公開しない（nginxからのみアクセス）
+    networks:
+      rushia_ipv6:
+        aliases:
+          - rushia-dl
     expose:
       - "8000"
     volumes:
-      # ローカルディレクトリをマウント
       - ./downloads:/app/downloads:z
       - ./cookies:/app/.cookies:z
     environment:
@@ -55,3 +57,13 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+networks:
+  rushia_ipv6:
+    name: rushia_ipv6
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: "10.89.0.0/24"
+        - subnet: "fd10:89::/64"

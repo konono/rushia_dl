@@ -457,8 +457,56 @@ body {
 
 .cookie-upload {
     display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.cookie-buttons {
+    display: flex;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.cookie-auto-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     gap: 0.5rem;
-    margin-bottom: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--accent-purple);
+    border: none;
+    border-radius: var(--radius-md);
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: var(--transition-normal);
+}
+
+.cookie-auto-btn:hover:not(:disabled) {
+    background: #7c3aed;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.cookie-auto-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.cookie-auto-btn.uploaded {
+    background: var(--accent-green);
+}
+
+.cookie-auto-btn.uploaded:hover {
+    background: #00cc6e;
+}
+
+.cookie-auto-btn svg {
+    width: 18px;
+    height: 18px;
 }
 
 .cookie-upload-btn {

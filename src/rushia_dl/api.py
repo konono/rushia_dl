@@ -131,7 +131,7 @@ async def cleanup_old_files():
                             print(f"[Cleanup] Deleted old file: {file_path.name}")
                         except Exception as e:
                             print(f"[Cleanup] Failed to delete {file_path.name}: {e}")
-            
+
             # 古いタスク情報を削除（ステータスごとのタイムアウト）
             tasks_to_delete = []
             for task_id, task_data in download_tasks.items():
@@ -139,10 +139,10 @@ async def cleanup_old_files():
                 status = task_data.get('status', 'pending')
                 timeout = TASK_TIMEOUT.get(status, 3 * 60 * 60)  # デフォルト3時間
                 task_age = current_time - created_at
-                
+
                 if task_age > timeout:
                     tasks_to_delete.append(task_id)
-            
+
             for task_id in tasks_to_delete:
                 task_data = download_tasks.get(task_id)
                 # filename_to_token からも削除
@@ -152,10 +152,10 @@ async def cleanup_old_files():
                         del filename_to_token[filename]
                 del download_tasks[task_id]
                 deleted_tasks += 1
-            
+
             if deleted_files > 0 or deleted_tasks > 0:
                 print(f"[Cleanup] Deleted {deleted_files} file(s), {deleted_tasks} task(s)")
-                
+
         except asyncio.CancelledError:
             print("[Cleanup] Task cancelled")
             break
@@ -200,11 +200,11 @@ def progress_hook(task_id: str):
             # バイトベースの進捗
             total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
             downloaded = d.get('downloaded_bytes', 0)
-            
+
             # フラグメントベースの進捗（HLS/DASHなど）
             fragment_index = d.get('fragment_index')
             fragment_count = d.get('fragment_count')
-            
+
             # 進捗を計算
             if total > 0 and downloaded > 0:
                 progress = (downloaded / total) * 100
@@ -212,22 +212,22 @@ def progress_hook(task_id: str):
                 progress = (fragment_index / fragment_count) * 100
             else:
                 progress = download_tasks[task_id].get('progress', 0)
-            
+
             download_tasks[task_id]['progress'] = min(progress, 99)
             download_tasks[task_id]['status'] = 'downloading'
-            
+
             # 追加情報を保存
             download_tasks[task_id]['speed'] = d.get('speed')
             download_tasks[task_id]['eta'] = d.get('eta')
             download_tasks[task_id]['downloaded_bytes'] = downloaded
             download_tasks[task_id]['total_bytes'] = total
             download_tasks[task_id]['elapsed'] = d.get('elapsed')
-            
+
             # フラグメント情報も保存（デバッグ用）
             if fragment_index and fragment_count:
                 download_tasks[task_id]['fragment_index'] = fragment_index
                 download_tasks[task_id]['fragment_count'] = fragment_count
-            
+
         elif d['status'] == 'finished':
             download_tasks[task_id]['status'] = 'processing'
             download_tasks[task_id]['progress'] = 99
@@ -251,49 +251,73 @@ def postprocessor_hook(task_id: str):
 def format_error_message(error: str) -> str:
     """エラーメッセージをユーザーフレンドリーな形式に変換"""
     error_lower = error.lower()
-    
+
     # レート制限エラー
     if 'rate-limit' in error_lower or 'rate limit' in error_lower:
         return "YouTubeのレート制限に達しました。1時間ほど待ってから再度お試しください。"
-    
+
     # コンテンツ利用不可
     if "this content isn't available" in error_lower:
         return "この動画は現在利用できません。YouTubeのレート制限の可能性があります。しばらく待ってから再度お試しください。"
-    
+
     # 動画が見つからない
     if 'video unavailable' in error_lower or 'not available' in error_lower:
         return "この動画は利用できません。削除されたか、非公開になっている可能性があります。"
-    
+
+    # フォーマットが利用できない（チャレンジ解決失敗など）
+    if 'requested format is not available' in error_lower or 'format is not available' in error_lower:
+        if 'challenge solving failed' in error_lower or 'n challenge' in error_lower:
+            return "YouTubeの認証に失敗しました。Cookieが有効でない可能性があります。再度Cookieを取得してください。"
+        if 'sabr' in error_lower or 'sabr streaming' in error_lower:
+            return "YouTubeのSABRストリーミング環境では、この動画のフォーマットが利用できません。しばらく待ってから再度お試しください。"
+        return "この動画のフォーマットが利用できません。YouTubeの仕様変更により、現在この動画をダウンロードできない可能性があります。しばらく待ってから再度お試しください。"
+
     # プライベート動画
     if 'private video' in error_lower:
         return "この動画は非公開です。"
-    
+
     # 年齢制限
     if 'age' in error_lower and 'restrict' in error_lower:
         return "この動画は年齢制限があります。cookie.txtを使用してログイン状態でお試しください。"
-    
+
     # メンバーシップ限定
     if 'members-only' in error_lower or 'member' in error_lower:
         return "この動画はメンバーシップ限定です。cookie.txtを使用してメンバーシップオプションを有効にしてください。"
-    
+
     # 地域制限
     if 'geo' in error_lower or 'country' in error_lower:
         return "この動画はお住まいの地域では利用できません。"
-    
+
     # ネットワークエラー
     if 'network' in error_lower or 'connection' in error_lower:
         return "ネットワークエラーが発生しました。インターネット接続を確認して再度お試しください。"
-    
+
     # FFmpegエラー
     if 'ffmpeg' in error_lower:
         return "動画の変換中にエラーが発生しました。FFmpegが正しくインストールされているか確認してください。"
-    
+
     # その他のエラー
     return f"ダウンロード中にエラーが発生しました: {error}"
 
 
-def get_common_ydl_opts(task_id: str) -> dict:
+def get_common_ydl_opts(task_id: str, cookie_path: Optional[str] = None) -> dict:
     """共通のyt-dlpオプションを取得"""
+    # Cookieが提供されている場合は、webクライアントのみを使用
+    # androidとiosクライアントはCookieをサポートしていないため
+    # Cookieなしの場合は、player_clientを指定しない（デフォルト動作で音声のみフォーマットが利用可能）
+    extractor_args_dict = {}
+    if cookie_path:
+        player_clients = ['web']  # Cookie使用時はwebのみ（唯一Cookieをサポート）
+        extractor_args_dict = {
+            'youtube': {
+                'player_client': player_clients,
+            }
+        }
+    # Cookieなしの場合は、player_clientを指定しない（デフォルト動作で音声のみフォーマットが利用可能）
+
+    # Cookie使用時は特別な設定は不要（webクライアントが最適）
+    # skip: ['dash', 'hls'] は逆効果の可能性があるため削除
+
     return {
         'outtmpl': str(DOWNLOAD_DIR / '%(title)s-%(id)s.%(ext)s'),
         'progress_hooks': [progress_hook(task_id)],
@@ -315,13 +339,8 @@ def get_common_ydl_opts(task_id: str) -> dict:
         # ★追加：IPv6経路で403/不安定になる環境の対策
         'force_ipv4': False,
 
-        # ★追加：YouTube extractor の安定化（SABR強制・URL欠落回避に効くことが多い）
-        # android が通りやすい / web は保険
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['android', 'web'],
-            }
-        },
+        # ★追加：YouTube extractor の安定化
+        'extractor_args': extractor_args_dict,
 
         # ついでにUAを付けておくとブロック回避率が上がることがある
         'http_headers': {
@@ -345,10 +364,10 @@ async def download_video(task_id: str, url: str, format: str, cookie_id: Optiona
 
     """バックグラウンドでダウンロードを実行"""
     global active_downloads
-    
+
     # URLをクリーンアップ（プレイリストパラメータを削除）
     url = clean_youtube_url(url)
-    
+
     # Cookieファイルのパスを決定
     cookie_path = None
     if cookie_id:
@@ -360,35 +379,47 @@ async def download_video(task_id: str, url: str, format: str, cookie_id: Optiona
             cookie_path = None
     else:
         print("[Debug] download_video: No cookie_id provided")
-    
+
     try:
         download_tasks[task_id]['status'] = 'downloading'
-        
-        # 共通オプションを取得
-        ydl_opts = get_common_ydl_opts(task_id)
-        
+
+        # 共通オプションを取得（Cookieパスを渡す）
+        ydl_opts = get_common_ydl_opts(task_id, str(cookie_path) if cookie_path else None)
+
         if format == 'm4a':
-            # M4A: YouTubeのネイティブ形式を直接ダウンロード（変換なし）
-            ydl_opts.update({
-                'format': 'bestaudio[ext=m4a]/bestaudio/best',
-                # M4A以外の形式がダウンロードされた場合のみ変換
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'm4a',
-                    'preferredquality': '0',  # 元の品質を維持
-                    'nopostoverwrites': True,
-                }],
-            })
+            # M4A: 音声のみをダウンロード（動画は含まない）
+            # Cookieあり + webクライアントのみの場合、SABRストリーミング環境により
+            # 音声のみフォーマットが利用できないため、format 18（動画+音声）をダウンロードして
+            # FFmpegで音声を抽出する
+            if cookie_path and cookie_path.exists():
+                # SABR環境対応: format 18をダウンロードしてFFmpegで音声抽出
+                ydl_opts.update({
+                    'format': '18',  # 動画+音声（SABR環境で利用可能）
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'm4a',
+                        'preferredquality': '0',  # 元の品質を維持
+                        'nopostoverwrites': True,
+                    }],
+                })
+            else:
+                # Cookieなしの場合: 音声のみフォーマットを直接ダウンロード
+                # より柔軟なフォーマット指定で、利用可能な音声フォーマットを選択
+                ydl_opts.update({
+                    'format': 'bestaudio[ext=m4a]/bestaudio[acodec^=mp4a]/bestaudio/best[acodec!=none][vcodec=none]',
+                    # postprocessorsは使用しない（FFmpeg不要）
+                })
         else:  # mp4
             ydl_opts.update({
                 'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best',
                 'merge_output_format': 'mp4',
             })
-        
+
         # クッキーファイルが存在する場合は使用
         if cookie_path and cookie_path.exists():
             ydl_opts['cookiefile'] = str(cookie_path)
-        
+            print(f"[Debug] download_video: cookiefile option set to: {cookie_path}")
+
         # ダウンロード実行（専用スレッドプールで実行）
         def run_download():
             with YoutubeDL(ydl_opts) as ydl:
@@ -399,40 +430,66 @@ async def download_video(task_id: str, url: str, format: str, cookie_id: Optiona
                     prepared_filename = ydl.prepare_filename(info)
                     info['_prepared_filename'] = prepared_filename
                 return info
-        
+
         loop = asyncio.get_event_loop()
         info = await loop.run_in_executor(download_executor, run_download)
-        
+
         # ダウンロードしたファイル名を取得
         if info:
             title = info.get('title', 'Unknown')
             video_id = info.get('id', '')
-            ext = 'm4a' if format == 'm4a' else 'mp4'
-            
+
             # 実際のファイルを検索（yt-dlpがサニタイズした名前で）
             actual_filename = None
-            
-            # 方法1: video_idでファイルを検索
+
+            # 方法1: video_idでファイルを検索（最新のファイルを優先）
+            # m4aフォーマットの場合、m4aを優先して探す
+            matching_files = []
             for file_path in DOWNLOAD_DIR.iterdir():
                 if file_path.is_file() and video_id in file_path.name:
-                    if file_path.suffix == f'.{ext}':
-                        actual_filename = file_path.name
-                        break
-            
-            # 方法2: prepare_filenameから取得
+                    if format == 'm4a':
+                        if file_path.suffix in ['.m4a', '.mp4']:
+                            matching_files.append((file_path.stat().st_mtime, file_path.name, file_path.suffix))
+                    else:
+                        if file_path.suffix == '.mp4':
+                            matching_files.append((file_path.stat().st_mtime, file_path.name, file_path.suffix))
+
+            if matching_files:
+                # 最新のファイルを優先、m4aフォーマットの場合は.m4aを優先
+                if format == 'm4a':
+                    # .m4aファイルを優先
+                    m4a_files = [(mtime, name, ext) for mtime, name, ext in matching_files if ext == '.m4a']
+                    if m4a_files:
+                        # 最新の.m4aファイル
+                        matching_files = sorted(m4a_files, key=lambda x: x[0], reverse=True)
+                    else:
+                        # .m4aがない場合は最新のファイル
+                        matching_files = sorted(matching_files, key=lambda x: x[0], reverse=True)
+                else:
+                    # 最新のファイル
+                    matching_files = sorted(matching_files, key=lambda x: x[0], reverse=True)
+
+                actual_filename = matching_files[0][1]
+
+            # 方法2: prepare_filenameから取得（方法1で見つからない場合）
             if not actual_filename and info.get('_prepared_filename'):
                 prepared = Path(info['_prepared_filename'])
-                # 拡張子を変換後のものに変更
-                expected_path = prepared.with_suffix(f'.{ext}')
-                if expected_path.exists():
-                    actual_filename = expected_path.name
-                # 元のパスも確認
-                elif prepared.with_suffix(f'.{ext}').name:
-                    for file_path in DOWNLOAD_DIR.iterdir():
-                        if video_id in file_path.name and file_path.suffix == f'.{ext}':
-                            actual_filename = file_path.name
-                            break
-            
+                # 実際のファイルの拡張子を確認
+                if prepared.exists():
+                    actual_filename = prepared.name
+                else:
+                    # m4aフォーマットの場合、m4aを優先して確認
+                    if format == 'm4a':
+                        for ext in ['.m4a', '.mp4']:
+                            expected_path = prepared.with_suffix(ext)
+                            if expected_path.exists():
+                                actual_filename = expected_path.name
+                                break
+                    else:
+                        expected_path = prepared.with_suffix('.mp4')
+                        if expected_path.exists():
+                            actual_filename = expected_path.name
+
             if actual_filename:
                 token = secrets.token_urlsafe(32)
                 expires_at = time.time() + DOWNLOAD_TOKEN_TTL_SECONDS
@@ -457,17 +514,17 @@ async def download_video(task_id: str, url: str, format: str, cookie_id: Optiona
             # infoがNoneの場合もエラーとして扱う
             download_tasks[task_id]['status'] = 'error'
             download_tasks[task_id]['error'] = "ダウンロードに失敗しました。動画情報を取得できませんでした。"
-        
+
     except Exception as e:
         download_tasks[task_id]['status'] = 'error'
         # エラーメッセージをユーザーフレンドリーに変換
         download_tasks[task_id]['error'] = format_error_message(str(e))
-    
+
     finally:
         # ダウンロード完了後、カウンターをデクリメント
         with downloads_lock:
             active_downloads -= 1
-        
+
         # Cookieファイルを削除（セキュリティのため）
         if cookie_path and cookie_path.exists():
             try:
@@ -492,10 +549,10 @@ async def upload_cookie(file: UploadFile = File(...)):
     # ファイル名の検証
     if not file.filename:
         raise HTTPException(status_code=400, detail="ファイルが選択されていません")
-    
+
     # ファイル内容を読み取り
     content = await file.read()
-    
+
     # 内容の検証（Netscape cookie形式かどうか簡易チェック）
     try:
         text_content = content.decode('utf-8')
@@ -504,16 +561,16 @@ async def upload_cookie(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="ファイルが空です")
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail="無効なファイル形式です")
-    
+
     # 一意のIDを生成
     cookie_id = str(uuid.uuid4())
-    
+
     # ファイルを保存
     cookie_path = COOKIE_DIR / f"{cookie_id}.txt"
     cookie_path.write_text(text_content, encoding='utf-8')
-    
+
     print(f"[Cookie] Uploaded cookie file: {cookie_id}")
-    
+
     return CookieUploadResponse(
         cookie_id=cookie_id,
         message="Cookieファイルがアップロードされました"
@@ -524,12 +581,12 @@ async def upload_cookie(file: UploadFile = File(...)):
 async def delete_cookie(cookie_id: str):
     """アップロードされたCookieファイルを削除"""
     cookie_path = COOKIE_DIR / f"{cookie_id}.txt"
-    
+
     if cookie_path.exists():
         cookie_path.unlink()
         print(f"[Cookie] Deleted cookie file: {cookie_id}")
         return {"message": "Cookieファイルが削除されました"}
-    
+
     raise HTTPException(status_code=404, detail="Cookieファイルが見つかりません")
 
 def extract_youtube_video_id(url: str) -> str:
@@ -598,7 +655,7 @@ def check_if_live(url: str, cookie_id: Optional[str] = None) -> dict:
     """動画がライブ配信中かどうかをチェック"""
     # URLをクリーンアップ（プレイリストパラメータを削除）
     url = clean_youtube_url(url)
-    
+
     # Cookieファイルのパスを決定
     cookie_path = None
     if cookie_id:
@@ -610,7 +667,14 @@ def check_if_live(url: str, cookie_id: Optional[str] = None) -> dict:
             cookie_path = None
     else:
         print("[Debug] check_if_live: No cookie_id provided")
-    
+
+    # Cookieが提供されている場合は、webクライアントのみを使用
+    # androidとiosクライアントはCookieをサポートしていないため
+    if cookie_path and cookie_path.exists():
+        player_clients = ['web']  # Cookie使用時はwebのみ（唯一Cookieをサポート）
+    else:
+        player_clients = ['android', 'web']  # Cookieなしの場合はandroid優先
+
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
@@ -621,12 +685,18 @@ def check_if_live(url: str, cookie_id: Optional[str] = None) -> dict:
         'extractor_retries': 3,
         # YouTubeのJSチャレンジ解決に必要（Deno + remote components）
         'remote_components': ['ejs:github'],
+        # Cookie使用時はwebクライアントのみ
+        'extractor_args': {
+            'youtube': {
+                'player_client': player_clients,
+            }
+        },
     }
-    
+
     if cookie_path and cookie_path.exists():
         ydl_opts['cookiefile'] = str(cookie_path)
         print(f"[Debug] check_if_live: cookiefile option set to: {cookie_path}")
-    
+
     with YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
         return {
@@ -640,15 +710,15 @@ def check_if_live(url: str, cookie_id: Optional[str] = None) -> dict:
 async def start_download(request: DownloadRequest, background_tasks: BackgroundTasks):
     """ダウンロードを開始"""
     global active_downloads
-    
+
     # URLの検証
     if not request.url or 'youtube.com' not in request.url and 'youtu.be' not in request.url:
         raise HTTPException(status_code=400, detail="有効なYouTube URLを入力してください")
-    
+
     # フォーマットの検証
     if request.format not in ['m4a', 'mp4']:
         raise HTTPException(status_code=400, detail="フォーマットはm4aまたはmp4を指定してください")
-    
+
     # 同時ダウンロード数のチェック
     with downloads_lock:
         if active_downloads >= MAX_CONCURRENT_DOWNLOADS:
@@ -658,7 +728,7 @@ async def start_download(request: DownloadRequest, background_tasks: BackgroundT
             )
         # ダウンロード数をインクリメント
         active_downloads += 1
-    
+
     # ライブ配信チェック（専用スレッドプールで実行）
     try:
         loop = asyncio.get_event_loop()
@@ -666,7 +736,7 @@ async def start_download(request: DownloadRequest, background_tasks: BackgroundT
             download_executor,
             lambda: check_if_live(request.url, request.cookie_id)
         )
-        
+
         # ライブ配信中の場合はエラー
         if video_info.get('is_live') or video_info.get('live_status') == 'is_live':
             with downloads_lock:
@@ -675,7 +745,7 @@ async def start_download(request: DownloadRequest, background_tasks: BackgroundT
                 status_code=400,
                 detail=f"「{video_info.get('title', '動画')}」は現在ライブ配信中です。配信終了後に再度お試しください。"
             )
-        
+
         # 配信予定の場合もエラー
         if video_info.get('live_status') == 'is_upcoming':
             with downloads_lock:
@@ -684,16 +754,16 @@ async def start_download(request: DownloadRequest, background_tasks: BackgroundT
                 status_code=400,
                 detail=f"「{video_info.get('title', '動画')}」は配信予定です。配信終了後に再度お試しください。"
             )
-            
+
     except HTTPException:
         raise
     except Exception:
         # チェック失敗時はダウンロードを試みる（エラーはダウンロード時に処理）
         pass
-    
+
     # タスクIDを生成
     task_id = str(uuid.uuid4())
-    
+
     # タスク状態を初期化
     download_tasks[task_id] = {
         'status': 'pending',
@@ -710,10 +780,10 @@ async def start_download(request: DownloadRequest, background_tasks: BackgroundT
         'elapsed': None,
         'created_at': time.time(),  # タスク作成時刻（クリーンアップ用）
     }
-    
+
     # バックグラウンドでダウンロードを実行
     background_tasks.add_task(download_video, task_id, request.url, request.format, request.cookie_id)
-    
+
     return DownloadStatus(
         task_id=task_id,
         status='pending',
@@ -760,16 +830,16 @@ async def download_root():
 async def download_file(filename: str, token: str = Query(..., min_length=10)):
     """トークン付きでダウンロード（Basic認証を外す前提）"""
     now = time.time()
-    
+
     # filename → token の辞書から直接検索（線形探索をやめる）
     token_info = filename_to_token.get(filename)
-    
+
     if not token_info:
         raise HTTPException(status_code=401, detail="無効なトークンです")
-    
+
     if token_info['token'] != token:
         raise HTTPException(status_code=401, detail="無効なトークンです")
-    
+
     expires_at = token_info.get('expires_at', 0)
     if now > expires_at:
         raise HTTPException(status_code=401, detail="トークンの有効期限が切れました。もう一度ダウンロードを実行してください。")
@@ -795,7 +865,7 @@ async def server_status():
         1 for f in DOWNLOAD_DIR.iterdir()
         if f.is_file() and f.suffix in ['.m4a', '.mp4']
     )
-    
+
     # アクティブなタスク（実行中のバックグラウンドタスク）を取得
     active_tasks = []
     for task_id, task_data in download_tasks.items():
@@ -809,7 +879,7 @@ async def server_status():
                 'title': task_data.get('title'),
                 'created_at': task_data.get('created_at'),
             })
-    
+
     return {
         "active_downloads": active_downloads,
         "max_concurrent_downloads": MAX_CONCURRENT_DOWNLOADS,
@@ -830,4 +900,3 @@ def run_server():
 
 if __name__ == "__main__":
     run_server()
-

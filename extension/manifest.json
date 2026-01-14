@@ -1,0 +1,31 @@
+{
+  "name": "Rushia DL Cookie Helper",
+  "description": "Rushia DL Webアプリと連携して、YouTubeのCookieを簡単に取得できる拡張機能です。メンバーシップ限定コンテンツのダウンロードをサポートします。",
+  "version": "1.0.0",
+  "manifest_version": 3,
+  "permissions": [
+    "cookies"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "externally_connectable": {
+    "matches": [
+      "http://localhost:*/*",
+      "http://127.0.0.1:*/*",
+      "http://0.0.0.0:*/*",
+      "https://rushiadl.holosco.pe/*"
+    ]
+  }
+}
+

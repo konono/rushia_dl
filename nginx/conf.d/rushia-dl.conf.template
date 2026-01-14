@@ -80,8 +80,21 @@ server {
         proxy_read_timeout 300s;
     }
 
-    # ダウンロードエンドポイント用（大きなファイル対応）
-    location ~ ^/api/download {
+    # POST /api/download 用（末尾スラッシュ無しを直にbackendへ）
+    location = /api/download {
+        # ここは Basic 認証を維持したいなら off しない（親の auth_basic を継承）
+        proxy_pass http://rushia-dl:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # 実ファイルDLだけ Basic 認証を外す（/api/download/<filename>）
+    location ^~ /api/download/ {
+        auth_basic off;
+
         proxy_pass http://rushia-dl:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -89,7 +102,6 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # 大きなファイル用の設定
         proxy_buffering off;
         proxy_request_buffering off;
         proxy_connect_timeout 60s;

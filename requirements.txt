@@ -56,5 +56,5 @@ watchfiles==1.1.1
     # via uvicorn
 websockets==15.0.1
     # via uvicorn
-yt-dlp==2025.12.8
+yt-dlp==2026.3.17
     # via rushia-dl

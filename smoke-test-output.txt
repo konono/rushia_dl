@@ -1,0 +1,16 @@
+=== rushia-dl smoke test ===
+
+--- Binary checks ---
+✅ yt-dlp 2026.03.17
+✅ ffmpeg 7.1.3-0+deb13u1
+✅ deno deno 2.7.13 (stable, release, x86_64-unknown-linux-gnu)
+⚠️ yt-dlp.conf: /etc/yt-dlp.conf not found (OK if running outside container)
+⚠️ API server: not responding (OK if running outside container)
+
+--- Network tests (using https://www.youtube.com/shorts/TEcRTgN75bQ) ---
+  Fetching metadata...
+⚠️ metadata fetch: exit=1 (non-fatal in CI)
+  Checking available formats...
+⚠️ format check: list-formats failed (exit=1) (non-fatal in CI)
+
+=== Results: 3 passed, 0 failed, 4 warnings ===

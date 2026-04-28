@@ -29,6 +29,11 @@ uv run rushia-dl -u URL -f m4a -m  # membership content (requires cookie.txt)
 
 # Update yt-dlp
 ./scripts/update-yt-dlp.sh
+
+# Smoke test (container内実行 — ローカルにffmpeg/deno不要)
+./scripts/smoke-test-container.sh
+./scripts/smoke-test-container.sh --quick                       # バイナリチェックのみ
+./scripts/smoke-test-container.sh --image rushia-dl:latest --ci  # 既存イメージ使用
 ```
 
 ## Architecture

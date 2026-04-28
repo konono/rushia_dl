@@ -73,16 +73,24 @@ jobs:
       - name: Run smoke test
         if: steps.check-update.outputs.update_needed == 'true' && steps.check-changes.outputs.has_changes == 'true'
         run: |
-          docker run --rm \
-            -v ${{ github.workspace }}/scripts/smoke-test.sh:/app/scripts/smoke-test.sh:ro \
-            rushia-dl:test bash /app/scripts/smoke-test.sh --ci --output /tmp/results.md | tee smoke-test-output.txt
-          docker cp $(docker create --rm rushia-dl:test):/tmp/results.md smoke-test-results.md 2>/dev/null || true
+          chmod +x scripts/smoke-test-container.sh scripts/smoke-test.sh
+          ./scripts/smoke-test-container.sh \
+            --image rushia-dl:test \
+            --ci \
+            --output smoke-test-results.md \
+            | tee smoke-test-output.txt
 
       - name: Save smoke test results
         if: steps.check-update.outputs.update_needed == 'true' && steps.check-changes.outputs.has_changes == 'true'
         id: test-results
         run: |
-          if [ -f smoke-test-output.txt ]; then
+          if [ -f smoke-test-results.md ]; then
+            {
+              echo "results<<SMOKE_EOF"
+              cat smoke-test-results.md
+              echo "SMOKE_EOF"
+            } >> $GITHUB_OUTPUT
+          elif [ -f smoke-test-output.txt ]; then
             {
               echo "results<<SMOKE_EOF"
               echo '### Smoke Test Results'

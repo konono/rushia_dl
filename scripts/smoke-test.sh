@@ -2,17 +2,20 @@
 # rushia-dl スモークテスト
 # コンテナ内でもローカルでも実行可能。
 # 実際のダウンロードは行わず、メタデータ取得とフォーマット確認のみ。
-# Usage: ./scripts/smoke-test.sh [--quick] [--output FILE]
+# Usage: ./scripts/smoke-test.sh [--quick] [--ci] [--output FILE]
 #   --quick: バイナリチェックのみ（ネットワークアクセスなし）
+#   --ci:    ネットワークテスト失敗を warning として扱う（CI 環境用）
 #   --output FILE: テスト結果をファイルにも出力（CI の PR body 埋め込み用）
 
 set -uo pipefail
 
 QUICK=false
+CI_MODE=false
 OUTPUT_FILE=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --quick)  QUICK=true; shift ;;
+        --ci)     CI_MODE=true; shift ;;
         --output) OUTPUT_FILE="$2"; shift 2 ;;
         *)        shift ;;
     esac
@@ -40,6 +43,14 @@ fail() {
     FAILED=$((FAILED + 1))
     RESULTS+=("❌ $1: $2")
     echo "❌ $1: $2" >&2
+}
+
+net_fail() {
+    if $CI_MODE; then
+        warn "$1: $2 (non-fatal in CI)"
+    else
+        fail "$1" "$2"
+    fi
 }
 
 echo "=== rushia-dl smoke test ==="
@@ -108,15 +119,15 @@ else
             if [[ "$FORMATS_COUNT" -gt 0 ]]; then
                 pass "metadata fetch: $FORMATS_COUNT formats found (no title)"
             else
-                fail "metadata fetch" "JSON returned but no title or formats"
+                net_fail "metadata fetch" "JSON returned but no title or formats"
             fi
         fi
     else
         STDERR_CONTENT=$(cat "$DUMP_STDERR")
         if echo "$STDERR_CONTENT" | grep -qi "challenge\|only images"; then
-            fail "n challenge" "JS challenge solving failed (deno/yt-dlp update needed)"
+            net_fail "n challenge" "JS challenge solving failed (deno/yt-dlp update needed)"
         else
-            fail "metadata fetch" "exit=$DUMP_EXIT"
+            net_fail "metadata fetch" "exit=$DUMP_EXIT"
         fi
     fi
     rm -f "$DUMP_FILE" "$DUMP_STDERR"
@@ -135,10 +146,10 @@ else
         elif [[ $HAS_AUDIO -gt 0 ]]; then
             pass "audio formats available ($HAS_AUDIO) but no video formats"
         else
-            fail "format check" "no audio/video formats found"
+            net_fail "format check" "no audio/video formats found"
         fi
     else
-        fail "format check" "list-formats failed (exit=$FORMAT_EXIT)"
+        net_fail "format check" "list-formats failed (exit=$FORMAT_EXIT)"
     fi
 fi
 

@@ -72,7 +72,7 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}/scripts/smoke-test.sh:/app/scripts/smoke-test.sh:ro \
-            rushia-dl:test bash /app/scripts/smoke-test.sh --output /tmp/results.md | tee smoke-test-output.txt
+            rushia-dl:test bash /app/scripts/smoke-test.sh --ci --output /tmp/results.md | tee smoke-test-output.txt
           docker cp $(docker create --rm rushia-dl:test):/tmp/results.md smoke-test-results.md 2>/dev/null || true
 
       - name: Save smoke test results

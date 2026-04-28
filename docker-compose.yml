@@ -49,6 +49,7 @@ services:
     volumes:
       - ./downloads:/app/downloads:z
       - ./cookies:/app/.cookies:z
+      - ./yt-dlp.conf:/etc/yt-dlp.conf:ro,z
     environment:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped

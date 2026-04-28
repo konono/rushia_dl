@@ -23,6 +23,8 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # compose run --rm certbot renew で利用するユーティリティサービス
+  # 証明書更新は systemd タイマー (rushia-certbot.timer) が実行する
   certbot:
     image: certbot/dns-cloudflare:latest
     container_name: rushia-certbot
@@ -31,8 +33,6 @@ services:
     volumes:
       - ./certbot/conf:/etc/letsencrypt:z
       - ./certbot/secrets:/run/secrets:ro,z
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-    restart: unless-stopped
 
   rushia-dl:
     build:

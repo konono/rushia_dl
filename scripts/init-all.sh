@@ -11,6 +11,7 @@
 #   6. ./scripts/wait-for-nginx.sh
 #   7. ./scripts/obtain-cert.sh <ドメイン> <メール>
 #   8. compose up -d
+#   9. ./scripts/setup-systemd.sh
 
 # shellcheck source=lib/common.sh
 source "$(dirname "$0")/lib/common.sh"
@@ -112,6 +113,10 @@ compose exec nginx nginx -s reload
 log_step "全サービスを起動..."
 compose up -d
 
+# Step 11: systemd ユニットをセットアップ
+log_step "systemd ユニットをセットアップ..."
+"$SCRIPTS_DIR/setup-systemd.sh"
+
 echo ""
 echo "============================================"
 log_success "セットアップが完了しました！"
@@ -119,7 +124,8 @@ echo "============================================"
 echo ""
 log_info "アクセスURL: https://$DOMAIN"
 echo ""
-log_info "証明書は自動で更新されます（12時間ごとにチェック）"
+log_info "証明書は自動で更新されます（systemd タイマーで1日2回チェック）"
 log_info "手動更新: ./scripts/renew-cert.sh"
 log_info "ユーザー管理: ./scripts/manage-user.sh help"
+log_info "systemd 状態: systemctl --user list-timers 'rushia-*'"
 

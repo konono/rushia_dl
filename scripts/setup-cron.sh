@@ -1,5 +1,8 @@
 #!/bin/bash
-# 証明書自動更新用のcronジョブを設定する
+# [非推奨] 証明書自動更新用のcronジョブを設定する
+# → 代わりに ./scripts/setup-systemd.sh を使用してください。
+#   systemd タイマー (rushia-certbot.timer) が証明書更新を管理します。
+#
 # 使用方法: ./scripts/setup-cron.sh [--remove]
 
 # shellcheck source=lib/common.sh

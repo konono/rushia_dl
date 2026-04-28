@@ -8,7 +8,7 @@ Docker Compose（または Podman Compose）で以下の 3 サービスを運用
 |---|---|---|
 | `rushia-dl` | ローカルビルド | uvicorn（FastAPI アプリ） |
 | `nginx` | `nginx:alpine` | リバースプロキシ / SSL 終端 |
-| `certbot` | `certbot/dns-cloudflare` | Let's Encrypt 自動更新 |
+| `certbot` | `certbot/dns-cloudflare` | Let's Encrypt 証明書更新（ユーティリティ、systemd タイマーから実行） |
 
 ## ネットワーク
 
@@ -46,10 +46,12 @@ docker compose logs -f nginx
 
 ## yt-dlp 更新
 
+GitHub Actions が毎日新バージョンを検出し、スモークテスト済みの PR を自動作成します。
+PR マージ後、systemd タイマーが毎日4:00に自動デプロイします。
+
+手動更新:
 ```bash
-./scripts/update-yt-dlp.sh
-docker compose build rushia-dl
-docker compose up -d rushia-dl
+./scripts/upgrade-and-deploy.sh
 ```
 
 詳細は [UPDATE_GUIDE.md](./UPDATE_GUIDE.md) を参照。

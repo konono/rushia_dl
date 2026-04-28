@@ -206,18 +206,8 @@ echo "https://your-domain.com"
 
 ## 11. 証明書の自動更新
 
-### 方法1: Certbotコンテナ（デフォルト）
-docker-compose.yml の certbot サービスが12時間ごとに自動更新をチェックします。
-更新後はnginxのリロードも自動で行われます。
-
-### 方法2: cronジョブ（追加オプション）
-```bash
-# cronジョブを設定（毎日午前3時に実行）
-./scripts/setup-cron.sh
-
-# cronジョブを削除
-./scripts/setup-cron.sh --remove
-```
+systemd タイマー (`rushia-certbot.timer`) が1日2回（3:00 / 15:00）証明書更新をチェックします。
+`setup-systemd.sh`（Step 13 参照）で自動的にセットアップされます。
 
 ### 手動更新
 ```bash
@@ -226,6 +216,9 @@ docker-compose.yml の certbot サービスが12時間ごとに自動更新を�
 
 # 強制更新（テスト用、本番では非推奨）
 ./scripts/renew-cert.sh --force
+
+# systemd タイマーを手動トリガー
+systemctl --user start rushia-certbot.service
 ```
 
 ### 証明書の状態確認
@@ -268,52 +261,54 @@ podman-compose exec nginx nginx -s reload
 
 ---
 
-## 13. 自動起動設定（systemd）
+## 13. systemd セットアップ（自動起動・ヘルスチェック・アップグレード・証明書更新）
+
+以下の systemd ユニットを一括でインストール・有効化します:
+
+| ユニット | 種別 | 用途 |
+|---|---|---|
+| `rushia-dl.service` | service | compose up/down（メインサービス） |
+| `rushia-healthcheck.timer` | timer | 毎時ヘルスチェック + Discord 通知 |
+| `rushia-upgrade.timer` | timer | 毎日4:00にgit pull + リビルド + 再デプロイ |
+| `rushia-certbot.timer` | timer | 1日2回(3:00/15:00)証明書更新チェック |
 
 ```bash
-mkdir -p ~/.config/systemd/user
-
-cat > ~/.config/systemd/user/rushia-dl.service << 'EOF'
-[Unit]
-Description=Rushia DL Container Stack
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-WorkingDirectory=%h/rushia_dl
-Environment="PATH=%h/podman-tools/bin:/usr/local/bin:/usr/bin:/bin"
-ExecStart=%h/podman-tools/bin/podman-compose up
-ExecStop=%h/podman-tools/bin/podman-compose down
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=default.target
+# Discord Webhook URL を設定（ヘルスチェック・アップグレード通知用）
+cat > .env.webhook << 'EOF'
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/xxxx/yyyy
 EOF
+chmod 600 .env.webhook
 
-systemctl --user daemon-reload
-systemctl --user enable rushia-dl.service
-systemctl --user start rushia-dl.service
-sudo loginctl enable-linger $(whoami)
+# systemd ユニットをインストール・有効化
+./scripts/setup-systemd.sh
+
+# 状態確認
+systemctl --user status rushia-dl.service
+systemctl --user list-timers 'rushia-*'
+```
+
+アンインストール:
+```bash
+./scripts/setup-systemd.sh --uninstall
 ```
 
 ---
 
 ## 14. アプリケーションの更新
 
+GitHub CI が yt-dlp の新バージョンを検出・検証して PR を作成します。
+PR をマージすると、systemd タイマー (`rushia-upgrade.timer`) が毎日4:00に自動で反映します。
+
+### 手動更新
 ```bash
-cd ~/rushia_dl
+# dry-run で確認
+./scripts/upgrade-and-deploy.sh --dry-run
 
-# コンテナを停止
-podman-compose down
+# 実行（git pull → ビルド → 再起動 → Discord 通知）
+./scripts/upgrade-and-deploy.sh
 
-# コードを更新
-git pull  # または scp
-
-# 再ビルド・起動
-podman-compose build --no-cache
-podman-compose up -d
+# または systemd 経由で手動トリガー
+systemctl --user start rushia-upgrade.service
 ```
 
 ---
@@ -411,7 +406,9 @@ sudo setenforce 0
 | `wait-for-nginx.sh` | nginx起動待ち |
 | `obtain-cert.sh` | Let's Encrypt証明書取得 |
 | `renew-cert.sh` | 証明書更新 |
-| `setup-cron.sh` | cron自動更新設定 |
+| `setup-systemd.sh` | systemd ユニットのインストール・有効化 |
+| `upgrade-and-deploy.sh` | git pull + リビルド + 再デプロイ |
+| `healthcheck.sh` | ヘルスチェック + Discord 通知 |
 | `manage-user.sh` | Basic認証ユーザー管理（add/delete/list） |
 
 ## クイックリファレンス
@@ -419,10 +416,12 @@ sudo setenforce 0
 | 操作 | コマンド |
 |------|---------|
 | 初期セットアップ | `./scripts/init-all.sh DOMAIN EMAIL` |
-| 起動 | `podman-compose up -d` |
-| 停止 | `podman-compose down` |
-| 再起動 | `podman-compose restart` |
+| systemd セットアップ | `./scripts/setup-systemd.sh` |
+| 起動 | `systemctl --user start rushia-dl.service` |
+| 停止 | `systemctl --user stop rushia-dl.service` |
 | ログ | `podman-compose logs -f` |
+| タイマー一覧 | `systemctl --user list-timers 'rushia-*'` |
+| 手動アップグレード | `systemctl --user start rushia-upgrade.service` |
 | 証明書更新 | `./scripts/renew-cert.sh` |
 | 証明書確認 | `podman-compose run --rm certbot certificates` |
 | ユーザー追加 | `./scripts/manage-user.sh add USERNAME` |

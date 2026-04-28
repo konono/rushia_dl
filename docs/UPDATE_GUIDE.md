@@ -4,15 +4,23 @@ yt-dlpは頻繁に更新されるため、自動更新の仕組みを用意し�
 
 ## 自動更新の方法
 
-### 1. GitHub Actions（推奨）
+### 1. GitHub Actions + サーバー自動デプロイ（推奨）
 
-毎日自動的にyt-dlpの最新バージョンをチェックし、更新がある場合はPull Requestを作成します。
+**GitHub 側:**
+毎日自動的にyt-dlpの最新バージョンをチェックし、更新がある場合はDockerイメージをビルド・スモークテストしてからPull Requestを作成します。
 
 - **スケジュール**: 毎日午前3時（UTC）、日本時間では12時
-- **動作**: 最新バージョンを検出 → PR作成 → マージ後に自動反映
+- **動作**: 最新バージョンを検出 → Docker ビルド → スモークテスト → PR作成
 
-#### 手動実行
 GitHubのActionsタブから「Update yt-dlp」ワークフローを手動実行できます。
+
+**サーバー側:**
+PR マージ後、systemd タイマー (`rushia-upgrade.timer`) が毎日4:00 JST に自動デプロイします:
+
+1. `git pull` で最新コードを取得
+2. `compose build rushia-dl` でリビルド（CI で検証済みのバージョン固定コード）
+3. `compose up -d rushia-dl` で再起動
+4. Discord に結果を通知
 
 ### 2. Dependabot
 
@@ -55,10 +63,11 @@ uv run rushia-web
 
 ### 3. Dockerイメージの更新
 
-Dockerfileでもyt-dlpをインストールしている場合、Dockerイメージも更新が必要です：
+サーバー側の自動デプロイが設定されていれば、PR マージ後に自動で反映されます。
+手動で反映する場合:
 
 ```bash
-docker build -t rushia-dl .
+./scripts/upgrade-and-deploy.sh
 ```
 
 ## トラブルシューティング

@@ -7,40 +7,41 @@ yt-dlp と deno は YouTube の仕様変更に追従するため頻繁なアッ�
 
 ### GitHub Actions (yt-dlp バージョン追跡)
 
-`.github/workflows/update-yt-dlp.yml` が毎日 PyPI をチェックし、yt-dlp の新バージョンがあれば PR を自動作成します。PR をマージすると `uv.lock` が更新されます。
+`.github/workflows/update-yt-dlp.yml` が毎日 PyPI をチェックし、yt-dlp の新バージョンがあれば:
 
-### サーバー側定期リビルド
+1. Docker イメージをビルドしてスモークテストを実行
+2. テスト通過後、バージョン固定済みの PR を自動作成
 
-週1回(日曜 AM4:00 JST)、`scripts/upgrade-and-deploy.sh` が以下を実行します:
+PR をマージすると `uv.lock` と `requirements.txt` が更新されます。
+
+### サーバー側自動デプロイ
+
+毎日 AM4:00 (JST)、systemd タイマー (`rushia-upgrade.timer`) が `scripts/upgrade-and-deploy.sh` を実行します:
 
 1. `git pull` で最新コードを取得
-2. `podman-compose build --no-cache rushia-dl` でリビルド
-3. `podman-compose up -d rushia-dl` で再起動
-4. ヘルスチェック
+2. `compose build rushia-dl` でリビルド
+3. `compose up -d rushia-dl` で再起動
+4. API 起動確認
 5. Discord に結果を通知
+
+スモークテストは GitHub CI 側で検証済みのため、本番では実行しません。
 
 ### セットアップ手順
 
 ```bash
 # 1. Discord Webhook URL を設定
-cat > /root/gitrepo/rushia_dl/.env.webhook << 'EOF'
+cat > .env.webhook << 'EOF'
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/xxxx/yyyy
 EOF
-chmod 600 /root/gitrepo/rushia_dl/.env.webhook
+chmod 600 .env.webhook
 
-# 2. systemd unit をインストール
-sudo cp /root/gitrepo/rushia_dl/systemd/*.service /etc/systemd/system/
-sudo cp /root/gitrepo/rushia_dl/systemd/*.timer /etc/systemd/system/
-sudo systemctl daemon-reload
+# 2. systemd ユニットをインストール
+./scripts/setup-systemd.sh
 
-# 3. timer を有効化
-sudo systemctl enable --now rushia-upgrade.timer
-sudo systemctl enable --now rushia-healthcheck.timer
-
-# 4. 動作確認
-sudo systemctl list-timers rushia-*
-sudo systemctl start rushia-healthcheck.service  # 手動テスト
-sudo journalctl -u rushia-healthcheck.service     # ログ確認
+# 3. 動作確認
+systemctl --user list-timers 'rushia-*'
+systemctl --user start rushia-healthcheck.service  # 手動テスト
+journalctl --user -u rushia-healthcheck.service     # ログ確認
 ```
 
 ### 手動実行
@@ -50,10 +51,34 @@ sudo journalctl -u rushia-healthcheck.service     # ログ確認
 ./scripts/upgrade-and-deploy.sh --dry-run
 
 # アップグレード (実行)
-DISCORD_WEBHOOK_URL=https://... ./scripts/upgrade-and-deploy.sh
+./scripts/upgrade-and-deploy.sh
+
+# systemd 経由
+systemctl --user start rushia-upgrade.service
 
 # ヘルスチェック
 ./scripts/healthcheck.sh
+```
+
+## systemd ユニット一覧
+
+| ユニット | 種別 | スケジュール | 用途 |
+|---|---|---|---|
+| `rushia-dl.service` | service | 常駐 | compose up/down |
+| `rushia-healthcheck.timer` | timer | 毎時 :07 | ヘルスチェック + Discord 通知 |
+| `rushia-upgrade.timer` | timer | 毎日 4:00 | git pull + リビルド + 再デプロイ |
+| `rushia-certbot.timer` | timer | 1日2回 (3:00/15:00) | 証明書更新チェック |
+
+```bash
+# インストール
+./scripts/setup-systemd.sh
+
+# アンインストール
+./scripts/setup-systemd.sh --uninstall
+
+# ステータス確認
+systemctl --user list-timers 'rushia-*'
+systemctl --user status rushia-dl.service
 ```
 
 ## ヘルスチェック
@@ -77,7 +102,7 @@ WARNING: [youtube] [jsc] Error solving n challenge request using "deno" provider
 → yt-dlp または deno のアップデートが必要です:
 
 ```bash
-./scripts/upgrade-and-deploy.sh
+systemctl --user start rushia-upgrade.service
 ```
 
 ### 403 Forbidden エラー

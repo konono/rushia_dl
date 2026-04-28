@@ -1,0 +1,16 @@
+[Unit]
+Description=Rushia DL Container Stack
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@@PROJECT_ROOT@@
+ExecStartPre=@@COMPOSE_CMD@@ build
+ExecStart=@@COMPOSE_CMD@@ up
+ExecStop=@@COMPOSE_CMD@@ down
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

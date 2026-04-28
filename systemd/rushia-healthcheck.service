@@ -5,6 +5,6 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/root/gitrepo/rushia_dl
-EnvironmentFile=/root/gitrepo/rushia_dl/.env.webhook
-ExecStart=/root/gitrepo/rushia_dl/scripts/healthcheck.sh
+WorkingDirectory=@@PROJECT_ROOT@@
+EnvironmentFile=@@PROJECT_ROOT@@/.env.webhook
+ExecStart=@@PROJECT_ROOT@@/scripts/healthcheck.sh

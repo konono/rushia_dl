@@ -1,0 +1,9 @@
+[Unit]
+Description=Rushia DL certificate renewal
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=@@PROJECT_ROOT@@
+ExecStart=@@PROJECT_ROOT@@/scripts/renew-cert.sh

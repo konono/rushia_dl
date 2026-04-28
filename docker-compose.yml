@@ -50,6 +50,7 @@ services:
       - ./downloads:/app/downloads:z
       - ./cookies:/app/.cookies:z
       - ./yt-dlp.conf:/etc/yt-dlp.conf:ro,z
+      - ./scripts/smoke-test.sh:/app/scripts/smoke-test.sh:ro,z
     environment:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped

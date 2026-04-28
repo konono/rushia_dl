@@ -1,0 +1,10 @@
+[Unit]
+Description=Rushia DL health check
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/gitrepo/rushia_dl
+EnvironmentFile=/root/gitrepo/rushia_dl/.env.webhook
+ExecStart=/root/gitrepo/rushia_dl/scripts/healthcheck.sh

@@ -1,0 +1,11 @@
+[Unit]
+Description=Rushia DL image rebuild and deploy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/gitrepo/rushia_dl
+EnvironmentFile=/root/gitrepo/rushia_dl/.env.webhook
+ExecStart=/root/gitrepo/rushia_dl/scripts/upgrade-and-deploy.sh
+TimeoutStartSec=600

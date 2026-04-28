@@ -2,13 +2,21 @@
 # rushia-dl スモークテスト
 # コンテナ内でもローカルでも実行可能。
 # 実際のダウンロードは行わず、メタデータ取得とフォーマット確認のみ。
-# Usage: ./scripts/smoke-test.sh [--quick]
+# Usage: ./scripts/smoke-test.sh [--quick] [--output FILE]
 #   --quick: バイナリチェックのみ（ネットワークアクセスなし）
+#   --output FILE: テスト結果をファイルにも出力（CI の PR body 埋め込み用）
 
 set -uo pipefail
 
 QUICK=false
-[[ "${1:-}" == "--quick" ]] && QUICK=true
+OUTPUT_FILE=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --quick)  QUICK=true; shift ;;
+        --output) OUTPUT_FILE="$2"; shift 2 ;;
+        *)        shift ;;
+    esac
+done
 
 TEST_VIDEO="https://www.youtube.com/shorts/TEcRTgN75bQ"
 PASSED=0
@@ -137,6 +145,18 @@ fi
 # Summary
 echo ""
 echo "=== Results: $PASSED passed, $FAILED failed, $WARNED warnings ==="
+
+if [[ -n "$OUTPUT_FILE" ]]; then
+    {
+        echo "### Smoke Test Results"
+        echo ""
+        for r in "${RESULTS[@]}"; do
+            echo "- $r"
+        done
+        echo ""
+        echo "**$PASSED passed, $FAILED failed, $WARNED warnings**"
+    } > "$OUTPUT_FILE"
+fi
 
 if [[ $FAILED -gt 0 ]]; then
     echo ""

@@ -2,9 +2,8 @@ name: Update yt-dlp
 
 on:
   schedule:
-    # 毎日午前3時（UTC）にチェック（日本時間では12時）
     - cron: '0 3 * * *'
-  workflow_dispatch: # 手動実行も可能
+  workflow_dispatch:
 
 jobs:
   check-update:
@@ -21,24 +20,18 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: "3.11"
 
       - name: Get current yt-dlp version
         id: current-version
         run: |
-          # uv.lockから現在のバージョンを取得
-          CURRENT=$(grep -A 5 'name = "yt-dlp"' uv.lock | grep 'version =' | head -1 | sed 's/.*version = "\(.*\)".*/\1/' || echo "")
-          if [ -z "$CURRENT" ]; then
-            # pyproject.tomlから取得を試みる
-            CURRENT=$(grep 'yt-dlp' pyproject.toml | grep -oP 'yt-dlp[>=<]*([0-9.]+)?' | sed 's/yt-dlp[>=<]*//' || echo "unknown")
-          fi
+          CURRENT=$(grep -A 5 'name = "yt-dlp"' uv.lock | grep 'version =' | head -1 | sed 's/.*version = "\(.*\)".*/\1/' || echo "unknown")
           echo "current=$CURRENT" >> $GITHUB_OUTPUT
           echo "Current yt-dlp version: $CURRENT"
 
       - name: Get latest yt-dlp version
         id: latest-version
         run: |
-          # PyPI APIから最新バージョンを取得
           LATEST=$(curl -s https://pypi.org/pypi/yt-dlp/json | python3 -c "import sys, json; print(json.load(sys.stdin)['info']['version'])" || echo "unknown")
           echo "latest=$LATEST" >> $GITHUB_OUTPUT
           echo "Latest yt-dlp version: $LATEST"
@@ -48,17 +41,17 @@ jobs:
         run: |
           if [ "${{ steps.current-version.outputs.current }}" != "${{ steps.latest-version.outputs.latest }}" ] && [ "${{ steps.latest-version.outputs.latest }}" != "unknown" ]; then
             echo "update_needed=true" >> $GITHUB_OUTPUT
-            echo "Update needed: ${{ steps.current-version.outputs.current }} -> ${{ steps.latest-version.outputs.latest }}"
           else
             echo "update_needed=false" >> $GITHUB_OUTPUT
             echo "No update needed"
           fi
 
-      - name: Update yt-dlp
+      - name: Update yt-dlp and regenerate requirements.txt
         if: steps.check-update.outputs.update_needed == 'true'
         run: |
           uv sync --upgrade-package yt-dlp
           uv lock
+          uv export --format requirements-txt --no-hashes --no-dev --no-emit-project > requirements.txt
 
       - name: Check for changes
         if: steps.check-update.outputs.update_needed == 'true'
@@ -68,6 +61,35 @@ jobs:
             echo "has_changes=true" >> $GITHUB_OUTPUT
           else
             echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Docker image
+        if: steps.check-update.outputs.update_needed == 'true' && steps.check-changes.outputs.has_changes == 'true'
+        run: docker build -t rushia-dl:test .
+
+      - name: Run smoke test
+        if: steps.check-update.outputs.update_needed == 'true' && steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/scripts/smoke-test.sh:/app/scripts/smoke-test.sh:ro \
+            rushia-dl:test bash /app/scripts/smoke-test.sh --output /tmp/results.md | tee smoke-test-output.txt
+          docker cp $(docker create --rm rushia-dl:test):/tmp/results.md smoke-test-results.md 2>/dev/null || true
+
+      - name: Save smoke test results
+        if: steps.check-update.outputs.update_needed == 'true' && steps.check-changes.outputs.has_changes == 'true'
+        id: test-results
+        run: |
+          if [ -f smoke-test-output.txt ]; then
+            {
+              echo "results<<SMOKE_EOF"
+              echo '### Smoke Test Results'
+              echo '```'
+              cat smoke-test-output.txt
+              echo '```'
+              echo "SMOKE_EOF"
+            } >> $GITHUB_OUTPUT
+          else
+            echo "results=Smoke test results unavailable" >> $GITHUB_OUTPUT
           fi
 
       - name: Create Pull Request
@@ -83,18 +105,15 @@ jobs:
             - **Current version**: ${{ steps.current-version.outputs.current }}
             - **Latest version**: ${{ steps.latest-version.outputs.latest }}
 
-            This PR was automatically created by the update workflow.
-
             ### Changes
             - Updated `yt-dlp` dependency
-            - Updated `uv.lock` file
+            - Updated `uv.lock`
+            - Regenerated `requirements.txt`
 
-            ### Testing
-            Please test the application to ensure everything works correctly with the new version.
+            ${{ steps.test-results.outputs.results }}
 
           branch: update/yt-dlp-${{ steps.latest-version.outputs.latest }}
           delete-branch: true
           labels: |
             dependencies
             automated
-

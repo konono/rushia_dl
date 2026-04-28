@@ -21,15 +21,9 @@ ENV PATH="/usr/local/bin:$PATH"
 # 作業ディレクトリを設定
 WORKDIR /app
 
-# 依存関係ファイルをコピー
-COPY pyproject.toml ./
-
-# ryeは使わず、pipで直接インストール
-RUN pip install --no-cache-dir \
-    fastapi \
-    uvicorn[standard] \
-    yt-dlp \
-    python-multipart
+# 依存関係をインストール (uv export で生成した requirements.txt を使用)
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
 # アプリケーションコードをコピー
 COPY src/ ./src/

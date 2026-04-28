@@ -51,7 +51,7 @@ jobs:
         run: |
           uv sync --upgrade-package yt-dlp
           uv lock
-          uv export --format requirements-txt --no-hashes --no-dev --no-emit-project > requirements.txt
+          uv export --format requirements-txt --no-hashes --no-dev --no-emit-project --quiet > requirements.txt
 
       - name: Check for changes
         if: steps.check-update.outputs.update_needed == 'true'

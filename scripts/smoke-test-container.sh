@@ -83,11 +83,11 @@ fi
 # ボリュームマウントの準備
 # ===========================================
 VOLUMES=(
-    -v "$SCRIPTS_DIR/smoke-test.sh:/app/scripts/smoke-test.sh:ro"
+    -v "$SCRIPTS_DIR/smoke-test.sh:/app/scripts/smoke-test.sh:ro,z"
 )
 
 if [[ -f "$PROJECT_ROOT/yt-dlp.conf" ]]; then
-    VOLUMES+=(-v "$PROJECT_ROOT/yt-dlp.conf:/etc/yt-dlp.conf:ro")
+    VOLUMES+=(-v "$PROJECT_ROOT/yt-dlp.conf:/etc/yt-dlp.conf:ro,z")
 fi
 
 TMPDIR_HOST=""
@@ -104,10 +104,9 @@ log_step "スモークテスト実行"
 
 set +e
 $ENGINE run --rm \
-    --entrypoint bash \
     "${VOLUMES[@]}" \
     "$IMAGE_TAG" \
-    /app/scripts/smoke-test.sh "${INNER_ARGS[@]}"
+    bash /app/scripts/smoke-test.sh "${INNER_ARGS[@]}"
 EXIT_CODE=$?
 set -e
 

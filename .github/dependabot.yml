@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # Python dependencies (uv/pip)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "03:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "yyuki"
+    labels:
+      - "dependencies"
+      - "python"
+    # yt-dlpを優先的に更新
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    ignore:
+      # 他のパッケージは手動更新（yt-dlpのみ自動）
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    # yt-dlpのみを自動更新
+    allow:
+      - dependency-name: "yt-dlp"
+

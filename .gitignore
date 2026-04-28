@@ -52,3 +52,6 @@ download/
 .env
 .env.*
 !.env.example
+
+# Vendored external tools
+Get-cookies.txt-LOCALLY/

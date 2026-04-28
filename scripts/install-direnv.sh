@@ -17,36 +17,26 @@ warn()  { echo -e "${YELLOW}==> $*${RESET}"; }
 error() { echo -e "${RED}==> ERROR: $*${RESET}" >&2; }
 die()   { error "$@"; exit 1; }
 
-# ---- OS / ディストロ検出 ----
-detect_os() {
+# ---- OS / アーキテクチャ検出 ----
+detect_platform() {
   OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
   ARCH="$(uname -m)"
 
-  case "$ARCH" in
-    x86_64)           ARCH="amd64" ;;
-    aarch64|arm64)    ARCH="arm64" ;;
-    i386|i686)        ARCH="386" ;;
-    *)                die "未対応アーキテクチャ: $ARCH" ;;
+  case "$OS" in
+    linux|darwin) ;;
+    *) die "未対応OS: $OS" ;;
   esac
 
-  DISTRO=""
-  if [[ "$OS" == "linux" ]] && [[ -f /etc/os-release ]]; then
-    # shellcheck disable=SC1091
-    . /etc/os-release
-    DISTRO="${ID:-unknown}"
-    DISTRO_LIKE="${ID_LIKE:-}"
-  fi
+  case "$ARCH" in
+    x86_64)        ARCH="amd64" ;;
+    aarch64|arm64) ARCH="arm64" ;;
+    i386|i686)     ARCH="386" ;;
+    *)             die "未対応アーキテクチャ: $ARCH" ;;
+  esac
 }
 
-# ---- パッケージマネージャでインストール ----
-install_with_brew()   { info "Homebrew でインストール中...";   brew install direnv; }
-install_with_apt()    { info "apt でインストール中...";        sudo apt-get update -qq && sudo apt-get install -y -qq direnv; }
-install_with_dnf()    { info "dnf でインストール中...";        sudo dnf install -y -q direnv; }
-install_with_pacman() { info "pacman でインストール中...";     sudo pacman -S --noconfirm --needed direnv; }
-install_with_apk()    { info "apk でインストール中...";        sudo apk add --quiet direnv; }
-
 # ---- GitHub Releases からバイナリインストール ----
-install_from_binary() {
+install_direnv() {
   local url="https://github.com/direnv/direnv/releases/latest/download/direnv.${OS}-${ARCH}"
   local install_dir
 
@@ -71,53 +61,11 @@ install_from_binary() {
 
   chmod +x "${install_dir}/direnv"
 
-  # PATH に含まれていなければ警告
   if [[ ":$PATH:" != *":${install_dir}:"* ]]; then
     warn "${install_dir} が PATH に含まれていません"
     echo "  以下をシェル設定ファイルに追加してください:"
     echo "    export PATH=\"${install_dir}:\$PATH\""
   fi
-}
-
-# ---- インストール実行 ----
-do_install() {
-  case "$OS" in
-    darwin)
-      if command -v brew &>/dev/null; then
-        install_with_brew
-      else
-        install_from_binary
-      fi
-      ;;
-    linux)
-      case "$DISTRO" in
-        ubuntu|debian|linuxmint|pop)
-          install_with_apt ;;
-        fedora|rhel|centos|rocky|alma|almalinux)
-          install_with_dnf ;;
-        arch|manjaro|endeavouros)
-          install_with_pacman ;;
-        alpine)
-          install_with_apk ;;
-        *)
-          # ID_LIKE でフォールバック判定
-          if [[ "$DISTRO_LIKE" == *"debian"* ]]; then
-            install_with_apt
-          elif [[ "$DISTRO_LIKE" == *"rhel"* ]] || [[ "$DISTRO_LIKE" == *"fedora"* ]]; then
-            install_with_dnf
-          elif [[ "$DISTRO_LIKE" == *"arch"* ]]; then
-            install_with_pacman
-          else
-            warn "ディストロ '${DISTRO}' のパッケージマネージャが不明です。バイナリを直接ダウンロードします。"
-            install_from_binary
-          fi
-          ;;
-      esac
-      ;;
-    *)
-      die "未対応OS: $OS"
-      ;;
-  esac
 }
 
 # ---- シェルフック設定 (冪等) ----
@@ -148,13 +96,11 @@ setup_shell_hook() {
 
   info "シェルフック設定 (${shell_name})"
 
-  # rcファイルがなければ作成
   if [[ ! -f "$rc_file" ]]; then
     mkdir -p "$(dirname "$rc_file")"
     touch "$rc_file"
   fi
 
-  # 冪等チェック: 既に存在すればスキップ
   if grep -qF "$hook_line" "$rc_file"; then
     echo "  ${rc_file} に既に設定済みです。スキップします。"
   else
@@ -170,10 +116,9 @@ main() {
   echo -e "${BOLD}direnv インストーラー${RESET}"
   echo ""
 
-  detect_os
-  info "検出: OS=${OS} ARCH=${ARCH} DISTRO=${DISTRO:-N/A}"
+  detect_platform
+  info "検出: OS=${OS} ARCH=${ARCH}"
 
-  # 既にインストール済みか確認
   if command -v direnv &>/dev/null; then
     local current_version
     current_version="$(direnv version 2>/dev/null || echo "unknown")"
@@ -190,14 +135,12 @@ main() {
   fi
 
   echo ""
-  do_install
+  install_direnv
 
-  # インストール確認
   echo ""
   if command -v direnv &>/dev/null; then
     info "direnv $(direnv version) をインストールしました"
   else
-    # PATHが通っていない場合のためにフルパスで確認
     if [[ -x "${HOME}/.local/bin/direnv" ]]; then
       info "direnv $("${HOME}/.local/bin/direnv" version) をインストールしました"
     else

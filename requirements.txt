@@ -56,5 +56,7 @@ watchfiles==1.1.1
     # via uvicorn
 websockets==15.0.1
     # via uvicorn
-yt-dlp==2026.10.21
+yt-dlp==2026.10.21 ; python_full_version < '3.11'
+    # via rushia-dl
+yt-dlp==2026.10.26 ; python_full_version >= '3.11'
     # via rushia-dl
